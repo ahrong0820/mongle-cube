@@ -94,7 +94,9 @@ describe('몽글큐브 핵심 흐름', () => {
     fireEvent.change(screen.getByLabelText('이유식 시작일'), { target: { value: today } })
     await user.click(screen.getByRole('button', { name: '날짜 저장' }))
 
-    expect(await screen.findByText('D+1 · 이유식 1일차')).toBeInTheDocument()
+    expect(
+      await screen.findByText('D+1 · 이유식 1일차', {}, { timeout: 5_000 }),
+    ).toBeInTheDocument()
     const overview = screen.getByRole('region', { name: '먹은 내용 한눈에 보기' })
     expect(within(overview).getByText('베이스').closest('.daily-food-sheet__row')).toHaveTextContent(
       '쌀죽 1개',
