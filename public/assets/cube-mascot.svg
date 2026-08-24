@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title desc">
+  <title id="title">웃고 있는 큐브 캐릭터</title>
+  <desc id="desc">작은 잎이 달린 이유식 큐브가 웃고 있습니다.</desc>
+  <ellipse cx="60" cy="100" rx="37" ry="8" fill="#e9dfd3"/>
+  <path d="M27 38 59 20l35 18-35 19-32-19Z" fill="#f8ddc3" stroke="#46705d" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M27 38v43l32 22V57L27 38Z" fill="#fffdf9" stroke="#46705d" stroke-width="4" stroke-linejoin="round"/>
+  <path d="m59 57 35-19v43l-35 22V57Z" fill="#f3eadf" stroke="#46705d" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="47" cy="67" r="3" fill="#315444"/>
+  <circle cx="72" cy="65" r="3" fill="#315444"/>
+  <path d="M50 77c6 6 14 6 20 0" fill="none" stroke="#315444" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="39" cy="75" r="4" fill="#e99a84" opacity=".65"/>
+  <circle cx="79" cy="73" r="4" fill="#e99a84" opacity=".65"/>
+  <path d="M59 20c-1-9 6-15 16-13-2 9-7 14-16 13Z" fill="#83a58f" stroke="#46705d" stroke-width="3" stroke-linejoin="round"/>
+</svg>

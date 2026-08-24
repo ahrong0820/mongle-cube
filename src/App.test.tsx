@@ -1,0 +1,102 @@
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it } from 'vitest'
+import App from './App'
+import { getSeoulDateKey } from './lib/date'
+
+describe('몽글큐브 핵심 흐름', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    window.history.replaceState({}, '', '/')
+  })
+
+  it('첫 큐브를 등록하고 먹은 기록을 누적한 뒤 되돌린다', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: '첫 큐브 등록' }))
+    await user.type(screen.getByLabelText(/큐브 이름/), '당근')
+    await user.click(screen.getByRole('button', { name: '큐브 저장' }))
+
+    expect(await screen.findByRole('heading', { name: '당근' })).toBeInTheDocument()
+    expect(screen.getByLabelText('남은 수량 1개')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '당근 1개 먹은 기록 남기기' }))
+    await waitFor(() => expect(screen.getByLabelText('남은 수량 0개')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: '당근 1개 먹은 기록 남기기' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: '먹은 기록' }))
+    expect(await screen.findByRole('heading', { name: '지금까지 1개 먹었어요' })).toBeInTheDocument()
+    expect(screen.getByText('당근', { selector: '.log-row__name strong' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '최근 기록 되돌리기' }))
+    await user.click(screen.getByRole('button', { name: '되돌리기' }))
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: '지금까지 0개 먹었어요' })).toBeInTheDocument(),
+    )
+
+    await user.click(screen.getByRole('button', { name: '냉동실' }))
+    expect(await screen.findByLabelText('남은 수량 1개')).toBeInTheDocument()
+  })
+
+  it('식단에 큐브를 계획하고 먹은 뒤 아기 반응까지 기록한다', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: '첫 큐브 등록' }))
+    await user.type(screen.getByLabelText(/큐브 이름/), '브로콜리')
+    await user.click(screen.getByRole('button', { name: '큐브 저장' }))
+
+    await user.click(await screen.findByRole('button', { name: '식단' }))
+    await user.click(screen.getByRole('button', { name: '아침 식단 추가' }))
+    await user.click(screen.getByRole('button', { name: '1개 계획하기' }))
+
+    expect(await screen.findByText('브로콜리', { selector: '.plan-item__copy strong' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '먹었어요' }))
+
+    await user.click(await screen.findByRole('button', { name: '반응 남기기' }))
+    await user.click(screen.getByRole('radio', { name: /잘 먹었어요/ }))
+    await user.type(screen.getByLabelText('반응 메모'), '한 숟갈 더 찾았어요')
+    await user.click(screen.getByRole('button', { name: '반응 저장' }))
+
+    await user.click(screen.getByRole('button', { name: '먹은 기록' }))
+    expect(await screen.findByRole('button', { name: /잘 먹음.*수정/ })).toBeInTheDocument()
+    expect(screen.getByText('한 숟갈 더 찾았어요')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '냉동실' }))
+    expect(await screen.findByLabelText('남은 수량 0개')).toBeInTheDocument()
+  })
+
+  it('달력에 아기 일수와 역할별 식단표를 함께 보여 준다', async () => {
+    const user = userEvent.setup()
+    const today = getSeoulDateKey(new Date())
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: '첫 큐브 등록' }))
+    await user.type(screen.getByLabelText(/큐브 이름/), '쌀죽')
+    await user.click(screen.getByRole('button', { name: '베이스' }))
+    await user.click(screen.getByRole('button', { name: '큐브 저장' }))
+    await user.click(await screen.findByRole('button', { name: '쌀죽 1개 먹은 기록 남기기' }))
+
+    await user.click(screen.getByRole('button', { name: '먹은 기록' }))
+    await user.click(await screen.findByRole('button', { name: '달력' }))
+    expect(await screen.findByRole('heading', { name: '먹은 기록 달력' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '아기 날짜' }))
+    fireEvent.change(screen.getByLabelText('아기 생일'), { target: { value: today } })
+    fireEvent.change(screen.getByLabelText('이유식 시작일'), { target: { value: today } })
+    await user.click(screen.getByRole('button', { name: '날짜 저장' }))
+
+    expect(await screen.findByText('D+1 · 이유식 1일차')).toBeInTheDocument()
+    const overview = screen.getByRole('region', { name: '먹은 내용 한눈에 보기' })
+    expect(within(overview).getByText('베이스').closest('.daily-food-sheet__row')).toHaveTextContent(
+      '쌀죽 1개',
+    )
+    expect(within(overview).getByText('NEW').closest('.daily-food-sheet__row')).toHaveTextContent(
+      '쌀죽',
+    )
+    expect(
+      screen.queryByRole('button', { name: /D\+와 이유식 일차도 같이 볼까요/ }),
+    ).not.toBeInTheDocument()
+  })
+})

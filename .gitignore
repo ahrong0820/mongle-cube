@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*
+!.env.example
+.env.*.local
+*.local.json
+roles.sql
+schema.sql
+data.sql
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
+coverage/

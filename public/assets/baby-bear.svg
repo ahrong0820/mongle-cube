@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="baby-bear-title baby-bear-desc">
+  <title id="baby-bear-title">이유식 그릇을 안고 있는 아기 곰</title>
+  <desc id="baby-bear-desc">둥근 아기 곰이 노란 이유식 그릇과 숟가락을 품에 안고 웃고 있습니다.</desc>
+  <g stroke="#315444" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="80" cy="148" rx="45" ry="6" fill="#274c3d" opacity=".14" stroke="none"/>
+    <path d="M43 124c0-30 15-47 37-47s37 17 37 47v18H43v-18Z" fill="#e9c495" stroke-width="3.5"/>
+    <circle cx="44" cy="43" r="18" fill="#f1d2a9" stroke-width="3.5"/>
+    <circle cx="116" cy="43" r="18" fill="#f1d2a9" stroke-width="3.5"/>
+    <circle cx="44" cy="43" r="9" fill="#e9a98d" stroke="none"/>
+    <circle cx="116" cy="43" r="9" fill="#e9a98d" stroke="none"/>
+    <path d="M80 18c-27 0-44 19-44 45 0 27 18 46 44 46s44-19 44-46c0-26-17-45-44-45Z" fill="#f1d2a9" stroke-width="3.5"/>
+    <ellipse cx="80" cy="75" rx="19" ry="15" fill="#fff3e4" stroke="none"/>
+    <circle cx="63" cy="62" r="3.2" fill="#315444" stroke="none"/>
+    <circle cx="97" cy="62" r="3.2" fill="#315444" stroke="none"/>
+    <ellipse cx="53" cy="76" rx="7" ry="4.5" fill="#e99a84" opacity=".5" stroke="none"/>
+    <ellipse cx="107" cy="76" rx="7" ry="4.5" fill="#e99a84" opacity=".5" stroke="none"/>
+    <path d="M74 71c2-4 10-4 12 0-1 5-4 7-6 7s-5-2-6-7Z" fill="#6c4b3c" stroke="none"/>
+    <path d="M80 78v3m-8 1c4 5 12 5 16 0" fill="none" stroke-width="2.7"/>
+    <path d="M112 108 132 72" fill="none" stroke="#fff3e4" stroke-width="8"/>
+    <path d="M112 108 132 72" fill="none" stroke-width="3"/>
+    <ellipse cx="135" cy="67" rx="6" ry="9" fill="#fff3e4" stroke-width="3" transform="rotate(29 135 67)"/>
+    <path d="M33 103c5-8 28-12 47-12s42 4 47 12c-5 9-28 13-47 13s-42-4-47-13Z" fill="#fff0cc" stroke-width="3.5"/>
+    <path d="M40 103c8-5 24-7 40-7s32 2 40 7c-10 5-26 7-40 7s-30-2-40-7Z" fill="#f0b970" stroke="none"/>
+    <path d="M34 104c4 27 18 43 46 43s42-16 46-43c-13 7-30 10-46 10s-33-3-46-10Z" fill="#f6c985" stroke-width="3.5"/>
+    <path d="M56 124c8 5 40 5 48 0" fill="none" stroke="#d99b54" stroke-width="2.7" opacity=".72"/>
+    <path d="M73 131c4 3 10 3 14 0" fill="none" stroke="#fff3e4" stroke-width="3"/>
+    <ellipse cx="45" cy="106" rx="12" ry="9" fill="#f1d2a9" stroke-width="3.2" transform="rotate(12 45 106)"/>
+    <ellipse cx="115" cy="106" rx="12" ry="9" fill="#f1d2a9" stroke-width="3.2" transform="rotate(-12 115 106)"/>
+  </g>
+</svg>
