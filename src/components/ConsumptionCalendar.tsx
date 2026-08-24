@@ -26,6 +26,22 @@ interface CubeGroup {
   hasWatch: boolean
 }
 
+interface CalendarCategorySummary {
+  category: CubeCategory
+  groups: CubeGroup[]
+}
+
+interface CalendarNewFoodSummary {
+  name: string
+  reaction: FoodReaction | null
+}
+
+interface CalendarDaySummary {
+  categories: CalendarCategorySummary[]
+  newFoods: CalendarNewFoodSummary[]
+  reactions: Array<[FoodReaction, number]>
+}
+
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
 const DATE_WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 const CATEGORY_ORDER: CubeCategory[] = ['base', 'topping', 'snack', 'other']
@@ -38,12 +54,12 @@ const CATEGORY_META: Record<CubeCategory, { label: string; symbol: string }> = {
 
 const REACTION_META: Record<
   FoodReaction,
-  { label: string; symbol: string; priority: number }
+  { label: string; shortLabel: string; symbol: string; priority: number }
 > = {
-  liked: { label: '잘 먹음', symbol: '♥', priority: 1 },
-  okay: { label: '보통', symbol: '●', priority: 0 },
-  disliked: { label: '거부', symbol: '–', priority: 2 },
-  watch: { label: '관찰 필요', symbol: '!', priority: 3 },
+  liked: { label: '잘 먹음', shortLabel: '잘', symbol: '♥', priority: 1 },
+  okay: { label: '보통', shortLabel: '보통', symbol: '●', priority: 0 },
+  disliked: { label: '거부', shortLabel: '거부', symbol: '–', priority: 2 },
+  watch: { label: '관찰 필요', shortLabel: '관찰', symbol: '!', priority: 3 },
 }
 
 function parseDateKey(value: string) {
@@ -177,6 +193,50 @@ function getStrongestReaction(records: ConsumptionRecord[]) {
     .map((record) => record.reaction)
     .filter((reaction): reaction is FoodReaction => Boolean(reaction))
     .sort((a, b) => REACTION_META[b].priority - REACTION_META[a].priority)[0] ?? null
+}
+
+function getSpokenReactionSummary(
+  reactions: Array<[FoodReaction, number]>,
+  recordCount: number,
+) {
+  const recordedCount = reactions.reduce((total, [, count]) => total + count, 0)
+  const parts = reactions.map(
+    ([reaction, count]) => `${REACTION_META[reaction].label} ${count}개`,
+  )
+  if (recordCount > recordedCount) parts.push(`미기록 ${recordCount - recordedCount}개`)
+  return parts.length > 0 ? `반응 ${parts.join(', ')}` : '반응 미기록'
+}
+
+function buildCalendarDaySummary(
+  records: ConsumptionRecord[],
+  categoryByBatchId: ReadonlyMap<string, CubeCategory>,
+  firstDateByCube: ReadonlyMap<string, string>,
+  dateKey: string,
+): CalendarDaySummary {
+  const categories = CATEGORY_ORDER.map((category) => ({
+    category,
+    groups: groupCubes(
+      records.filter(
+        (record) => (categoryByBatchId.get(record.batchId) ?? 'other') === category,
+      ),
+    ),
+  })).filter(({ category, groups }) => category !== 'other' || groups.length > 0)
+  const newFoodNames = [...new Set(
+    sortRecords(records)
+      .reverse()
+      .filter((record) => firstDateByCube.get(record.cubeName) === dateKey)
+      .map((record) => record.cubeName),
+  )]
+  const reactions = getDayReactions(records)
+
+  return {
+    categories,
+    newFoods: newFoodNames.map((name) => ({
+      name,
+      reaction: getStrongestReaction(records.filter((record) => record.cubeName === name)),
+    })),
+    reactions,
+  }
 }
 
 export function ConsumptionCalendar({
@@ -349,37 +409,37 @@ export function ConsumptionCalendar({
             const key = formatDateKey(date)
             const babyAge = getBabyAgeDays(key, profile)
             const dayRecords = recordsByDate.get(key) ?? []
-            const cubeGroups = groupCubes(dayRecords)
-            const newFoodNames = [...new Set(
-              sortRecords(dayRecords)
-                .reverse()
-                .filter((record) => firstDateByCube.get(record.cubeName) === key)
-                .map((record) => record.cubeName),
-            )]
-            const orderedCubeGroups = [
-              ...newFoodNames.flatMap((name) => {
-                const group = cubeGroups.find((candidate) => candidate.name === name)
-                return group ? [group] : []
-              }),
-              ...cubeGroups.filter((group) => !newFoodNames.includes(group.name)),
-            ]
-            const visibleCubes = orderedCubeGroups.slice(0, newFoodNames.length > 0 ? 1 : 2)
-            const hiddenCubeCount = cubeGroups
-              .filter((group) => !visibleCubes.some((visible) => visible.name === group.name))
-              .reduce((sum, group) => sum + group.count, 0)
-            const reactions = getDayReactions(dayRecords)
-            const visibleReactions = reactions.slice(0, 3)
-            const hasWatch = reactions.some(([reaction]) => reaction === 'watch')
+            const daySummary = buildCalendarDaySummary(
+              dayRecords,
+              categoryByBatchId,
+              firstDateByCube,
+              key,
+            )
+            const hasWatch = daySummary.reactions.some(([reaction]) => reaction === 'watch')
             const inMonth = key.slice(0, 7) === visibleMonth
             const isToday = key === todayKey
             const isSelected = key === selectedDate
+            const showDaySheet = inMonth && dayRecords.length > 0
+            const categorySummary = daySummary.categories
+              .filter(({ groups }) => groups.length > 0)
+              .map(({ category, groups }) =>
+                `${CATEGORY_META[category].label} ${groups
+                  .map(({ name, count }) => `${name} ${count}개`)
+                  .join(', ')}`,
+              )
             const spokenSummary =
               dayRecords.length === 0
                 ? '먹은 기록 없음'
                 : [
                     `${dayRecords.length}개 기록`,
+                    babyAge !== null ? `D+${babyAge}` : null,
                     hasWatch ? '관찰 필요 기록 있음' : null,
-                    newFoodNames.length > 0 ? `새 음식 ${newFoodNames.join(', ')}` : null,
+                    ...categorySummary,
+                    daySummary.newFoods.length > 0
+                      ? `새 음식 ${daySummary.newFoods.map(({ name }) => name).join(', ')}`
+                      : null,
+                    `먹은 양 ${getAmountSummary(dayRecords)}`,
+                    getSpokenReactionSummary(daySummary.reactions, dayRecords.length),
                   ].filter(Boolean).join(', ')
 
             return (
@@ -391,9 +451,9 @@ export function ConsumptionCalendar({
                   !inMonth && 'is-outside',
                   isToday && 'is-today',
                   isSelected && 'is-selected',
-                  dayRecords.length > 0 && 'has-records',
-                  newFoodNames.length > 0 && 'has-new',
-                  hasWatch && 'has-watch',
+                  showDaySheet && 'has-records',
+                  showDaySheet && daySummary.newFoods.length > 0 && 'has-new',
+                  showDaySheet && hasWatch && 'has-watch',
                 ]
                   .filter(Boolean)
                   .join(' ')}
@@ -406,46 +466,75 @@ export function ConsumptionCalendar({
                   {babyAge !== null && <small>D+{babyAge}</small>}
                 </span>
 
-                {(newFoodNames.length > 0 || visibleCubes.length > 0) && (
-                  <span className="month-day__cubes" aria-hidden="true">
-                    {newFoodNames.length > 0 && (
-                      <span className="month-day__new">NEW</span>
-                    )}
-                    {visibleCubes.map((group) => (
-                      <span
-                        className={`month-day__cube ${group.hasWatch ? 'has-watch' : ''}`}
-                        key={group.name}
-                      >
-                        {group.name}
-                        {group.count > 1 && <b>×{group.count}</b>}
-                      </span>
-                    ))}
-                    {hiddenCubeCount > 0 && (
-                      <span className="month-day__more">+{hiddenCubeCount}개</span>
-                    )}
-                  </span>
-                )}
+                {showDaySheet && (
+                  <span className="month-day__sheet" aria-hidden="true">
+                    <span className="month-day__categories">
+                      {daySummary.categories.map(({ category, groups }) => (
+                        <span
+                          className={`month-day__category is-${category}`}
+                          key={category}
+                        >
+                          <i>{CATEGORY_META[category].label}</i>
+                          <span>
+                            {groups.length === 0 ? (
+                              <b className="is-empty">—</b>
+                            ) : (
+                              <>
+                                {groups.slice(0, 2).map((group) => (
+                                  <b className={group.hasWatch ? 'has-watch' : ''} key={group.name}>
+                                    {group.name}
+                                    {group.count > 1 && <small>×{group.count}</small>}
+                                  </b>
+                                ))}
+                                {groups.length > 2 && <small>+{groups.length - 2}</small>}
+                              </>
+                            )}
+                          </span>
+                        </span>
+                      ))}
+                    </span>
 
-                {visibleReactions.length > 0 && (
-                  <span
-                    aria-label={reactions
-                      .map(
-                        ([reaction, count]) =>
-                          `${REACTION_META[reaction].label} ${count}개`,
-                      )
-                      .join(', ')}
-                    className="month-day__reactions"
-                  >
-                    {visibleReactions.map(([reaction, count]) => (
-                      <span
-                        className={`reaction-mark reaction-mark--${reaction}`}
-                        key={reaction}
-                        title={`${REACTION_META[reaction].label} ${count}개`}
-                      >
-                        {REACTION_META[reaction].symbol}
+                    {daySummary.newFoods.length > 0 && (
+                      <span className="month-day__new">
+                        <strong>NEW</strong>
+                        <span className="month-day__new-foods">
+                          {daySummary.newFoods.map(({ name, reaction }) => (
+                            <span
+                              className={reaction === 'watch' ? 'has-watch' : ''}
+                              key={name}
+                              title={`${name} · ${reaction ? REACTION_META[reaction].label : '반응 미기록'}`}
+                            >
+                              <b>{name}</b>
+                              <small className={reaction ? `is-${reaction}` : 'is-empty'}>
+                                {reaction && <i>{REACTION_META[reaction].symbol}</i>}
+                                {reaction ? REACTION_META[reaction].shortLabel : '미기록'}
+                              </small>
+                            </span>
+                          ))}
+                        </span>
                       </span>
-                    ))}
-                    {reactions.length > visibleReactions.length && <small>+</small>}
+                    )}
+
+                    <span className="month-day__result">
+                      <span className="month-day__amount">
+                        <small>먹은 양</small>
+                        <b>{getAmountSummary(dayRecords)}</b>
+                      </span>
+                      <span className="month-day__reactions">
+                        <em>반응</em>
+                        {daySummary.reactions.length > 0 ? (
+                          daySummary.reactions.map(([reaction, count]) => (
+                            <small className={`is-${reaction}`} key={reaction}>
+                              <i>{REACTION_META[reaction].symbol}</i>
+                              {REACTION_META[reaction].shortLabel}
+                              {count > 1 && `×${count}`}
+                            </small>
+                          ))
+                        ) : (
+                          <small className="is-empty">—</small>
+                        )}
+                      </span>
+                    </span>
                   </span>
                 )}
               </button>

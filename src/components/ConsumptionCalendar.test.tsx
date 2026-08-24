@@ -98,7 +98,9 @@ describe('먹은 기록 달력', () => {
     ).not.toBeInTheDocument()
 
     fireEvent.click(
-      screen.getByRole('button', { name: '8월 24일, 1개 기록, 새 음식 당근' }),
+      screen.getByRole('button', {
+        name: /^8월 24일, 1개 기록, 기타 당근 1개, 새 음식 당근,/,
+      }),
     )
 
     expect(screen.getByRole('heading', { name: /8월 24일/ })).toBeInTheDocument()
@@ -117,6 +119,11 @@ describe('먹은 기록 달력', () => {
 
     const grid = screen.getByRole('group', { name: '2026년 8월 날짜 선택' })
     expect(within(grid).getAllByRole('button')).toHaveLength(42)
+    expect(
+      [...document.querySelectorAll('.month-calendar__weekdays span')].map(
+        (weekday) => weekday.textContent,
+      ),
+    ).toEqual(['월', '화', '수', '목', '금', '토', '일'])
     expect(screen.getByRole('button', { name: '8월 25일, 먹은 기록 없음' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -152,10 +159,11 @@ describe('먹은 기록 달력', () => {
     )
 
     const watchedDay = screen.getByRole('button', {
-      name: '8월 25일, 2개 기록, 관찰 필요 기록 있음, 새 음식 당근, 소고기',
+      name: /^8월 25일, 2개 기록, 관찰 필요 기록 있음, 기타 소고기 1개, 당근 1개, 새 음식 당근, 소고기,/,
     })
     expect(watchedDay).toHaveClass('has-watch')
-    expect(screen.getByLabelText('관찰 필요 1개, 잘 먹음 1개')).toBeInTheDocument()
+    expect(watchedDay).toHaveAccessibleName(/반응 관찰 필요 1개, 잘 먹음 1개/)
+    expect(within(watchedDay).getAllByText('관찰')).not.toHaveLength(0)
 
     const detail = within(getCalendarDetail())
     expect(detail.getByRole('button', { name: /^당근 09:00/ })).toBeInTheDocument()
@@ -175,6 +183,36 @@ describe('먹은 기록 달력', () => {
     fireEvent.click(screen.getByRole('button', { name: '다음 달 보기' }))
     expect(screen.getByText('2026년 8월')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /8월 25일/ })).toBeInTheDocument()
+  })
+
+  it('인접 월 날짜는 숫자만 보이고 선택해 해당 월로 이동하면 식단을 펼친다', () => {
+    render(
+      <ConsumptionCalendar
+        {...commonProps}
+        onEditReaction={vi.fn()}
+        records={[
+          makeRecord({
+            id: 'outside-month',
+            cubeName: '감자',
+            consumedAt: '2026-07-31T00:00:00.000Z',
+            createdAt: '2026-07-31T00:00:00.000Z',
+          }),
+        ]}
+      />,
+    )
+
+    const outsideDay = screen.getByRole('button', { name: /^7월 31일, 1개 기록,/ })
+    expect(outsideDay).toHaveClass('is-outside')
+    expect(outsideDay.querySelector('.month-day__sheet')).not.toBeInTheDocument()
+    expect(within(outsideDay).queryByText('NEW')).not.toBeInTheDocument()
+
+    fireEvent.click(outsideDay)
+
+    expect(screen.getByText('2026년 7월')).toBeInTheDocument()
+    const inMonthDay = screen.getByRole('button', { name: /^7월 31일, 1개 기록,/ })
+    expect(inMonthDay).not.toHaveClass('is-outside')
+    expect(inMonthDay.querySelector('.month-day__sheet')).toBeInTheDocument()
+    expect(within(inMonthDay).getByText('NEW')).toBeInTheDocument()
   })
 
   it('반응과 메모 수정 버튼으로 선택한 기록을 전달한다', () => {
@@ -237,13 +275,14 @@ describe('먹은 기록 달력', () => {
     )
 
     expect(screen.getByText('D+170 · 이유식 10일차')).toBeInTheDocument()
-    expect(screen.getByText('베이스').closest('.daily-food-sheet__row')).toHaveTextContent(
+    const detailSheet = within(getCalendarDetail())
+    expect(detailSheet.getByText('베이스').closest('.daily-food-sheet__row')).toHaveTextContent(
       '쌀죽 1개',
     )
-    expect(screen.getByText('토핑').closest('.daily-food-sheet__row')).toHaveTextContent(
+    expect(detailSheet.getByText('토핑').closest('.daily-food-sheet__row')).toHaveTextContent(
       '소고기 1개',
     )
-    expect(screen.getByText('간식').closest('.daily-food-sheet__row')).toHaveTextContent(
+    expect(detailSheet.getByText('간식').closest('.daily-food-sheet__row')).toHaveTextContent(
       '사과 1개',
     )
     const newRow = within(
@@ -253,12 +292,42 @@ describe('먹은 기록 달력', () => {
     expect(newRow.getByText('소고기')).toBeInTheDocument()
     expect(newRow.getByText('사과')).toBeInTheDocument()
     expect(newRow.getByText('관찰 필요')).toBeInTheDocument()
-    expect(screen.getAllByText('3개 · 65g')).toHaveLength(2)
+    expect(detailSheet.getAllByText('3개 · 65g')).toHaveLength(2)
 
     const calendarDay = screen.getByRole('button', {
-      name: '8월 25일, 3개 기록, 관찰 필요 기록 있음, 새 음식 쌀죽, 소고기, 사과',
+      name: /^8월 25일, 3개 기록, D\+170, 관찰 필요 기록 있음,/,
     })
-    expect(within(calendarDay).getByText('NEW')).toBeInTheDocument()
+    const calendarCell = within(calendarDay)
+    expect(calendarCell.getByText('D+170')).toBeInTheDocument()
+    expect(calendarDay.querySelector('.month-day__category.is-base')).toHaveTextContent(
+      '베이스쌀죽',
+    )
+    expect(calendarDay.querySelector('.month-day__category.is-topping')).toHaveTextContent(
+      '토핑소고기',
+    )
+    expect(calendarDay.querySelector('.month-day__category.is-snack')).toHaveTextContent(
+      '간식사과',
+    )
+    expect(calendarDay).toHaveAccessibleName(/베이스 쌀죽 1개/)
+    expect(calendarDay).toHaveAccessibleName(/토핑 소고기 1개/)
+    expect(calendarDay).toHaveAccessibleName(/간식 사과 1개/)
+
+    const calendarNew = within(calendarDay.querySelector('.month-day__new')!)
+    expect(calendarNew.getByText('NEW')).toBeInTheDocument()
+    expect(calendarNew.getByText('쌀죽')).toBeInTheDocument()
+    expect(calendarNew.getByText('소고기')).toBeInTheDocument()
+    expect(calendarNew.getByText('사과')).toBeInTheDocument()
+    expect(calendarNew.getByTitle('쌀죽 · 반응 미기록')).toBeInTheDocument()
+    expect(calendarNew.getByTitle('소고기 · 관찰 필요')).toBeInTheDocument()
+    expect(calendarNew.getByTitle('사과 · 잘 먹음')).toBeInTheDocument()
+    expect(calendarNew.getByText('미기록')).toBeInTheDocument()
+    expect(calendarNew.getByText('관찰')).toBeInTheDocument()
+    expect(calendarNew.getByText('잘')).toBeInTheDocument()
+    expect(calendarDay.querySelector('.month-day__result')).toHaveTextContent('먹은 양')
+    expect(calendarDay.querySelector('.month-day__result')).toHaveTextContent('3개 · 65g')
+    expect(calendarDay.querySelector('.month-day__result')).toHaveTextContent('관찰')
+    expect(calendarDay.querySelector('.month-day__result')).toHaveTextContent('잘')
+    expect(calendarDay).toHaveAccessibleName(/반응 관찰 필요 1개, 잘 먹음 1개, 미기록 1개/)
 
     fireEvent.click(screen.getByRole('button', { name: '아기 날짜' }))
     expect(onEditProfile).toHaveBeenCalledTimes(1)
@@ -285,11 +354,40 @@ describe('먹은 기록 달력', () => {
     )
 
     const firstDay = screen.getByRole('button', {
-      name: '8월 24일, 1개 기록, 새 음식 당근',
+      name: /^8월 24일, 1개 기록, 기타 당근 1개, 새 음식 당근,/,
     })
-    const secondDay = screen.getByRole('button', { name: '8월 25일, 1개 기록' })
+    const secondDay = screen.getByRole('button', {
+      name: /^8월 25일, 1개 기록, 기타 당근 1개,/,
+    })
 
     expect(within(firstDay).getByText('NEW')).toBeInTheDocument()
+    expect(firstDay).toHaveAccessibleName(/새 음식 당근/)
     expect(within(secondDay).queryByText('NEW')).not.toBeInTheDocument()
+    expect(within(secondDay).getByText('당근')).toBeInTheDocument()
+    expect(secondDay).not.toHaveAccessibleName(/새 음식/)
+  })
+
+  it('NEW 음식이 네 개 이상이어도 이름을 숨기지 않고 세로로 모두 표시한다', () => {
+    render(
+      <ConsumptionCalendar
+        {...commonProps}
+        onEditReaction={vi.fn()}
+        records={['쌀', '소고기', '애호박', '브로콜리'].map((cubeName, index) =>
+          makeRecord({
+            id: `new-food-${index}`,
+            cubeName,
+            consumedAt: `2026-08-25T0${index}:00:00.000Z`,
+            createdAt: `2026-08-25T0${index}:00:00.000Z`,
+          }),
+        )}
+      />,
+    )
+
+    const day = screen.getByRole('button', { name: /^8월 25일, 4개 기록,/ })
+    const newFoods = within(day.querySelector('.month-day__new-foods')!)
+    for (const name of ['쌀', '소고기', '애호박', '브로콜리']) {
+      expect(newFoods.getByText(name)).toBeInTheDocument()
+    }
+    expect(newFoods.queryByText('+1')).not.toBeInTheDocument()
   })
 })

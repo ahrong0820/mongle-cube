@@ -1107,9 +1107,11 @@ a {
 }
 
 .month-calendar {
-  padding: 12px 8px 10px;
+  padding: 12px 4px 10px;
+  margin-right: -16px;
+  margin-left: -16px;
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 18px;
   background: rgba(255, 253, 249, 0.94);
   box-shadow: 0 8px 24px rgba(78, 59, 42, 0.055);
 }
@@ -1147,11 +1149,11 @@ a {
 .month-calendar__grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 3px;
+  gap: 1px;
 }
 
 .month-calendar__weekdays {
-  padding: 0 1px 5px;
+  padding: 0 2px 6px;
 }
 
 .month-calendar__weekdays span {
@@ -1163,23 +1165,27 @@ a {
 
 .month-calendar__grid {
   align-items: stretch;
+  padding: 1px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #eadfd3;
 }
 
 .month-day {
   position: relative;
   display: grid;
   min-width: 0;
-  min-height: 78px;
-  grid-template-rows: 17px minmax(0, 1fr) 14px;
+  min-height: 58px;
+  grid-template-rows: 25px minmax(0, 1fr);
   align-content: start;
-  padding: 4px 3px 3px;
+  padding: 5px 2px 4px;
   overflow: hidden;
-  border: 1px solid transparent;
-  border-radius: 10px;
+  border: 0;
+  border-radius: 7px;
   color: var(--muted);
   background: #faf7f2;
   text-align: left;
-  gap: 2px;
+  gap: 3px;
 }
 
 .month-day.is-outside {
@@ -1187,22 +1193,25 @@ a {
 }
 
 .month-day.has-records {
+  min-height: 168px;
   color: var(--ink);
-  background: #f2f8f4;
+  background: #fbfefc;
 }
 
 .month-day.has-new {
-  background: #fff2eb;
+  background: #fff9f5;
 }
 
 .month-day.has-watch {
-  border-color: #e7bd6d;
   background: #fff5da;
+  box-shadow: inset 0 0 0 1px #e7bd6d;
 }
 
 .month-day.is-selected {
-  border-color: var(--sage);
-  box-shadow: 0 0 0 2px rgba(70, 112, 93, 0.15);
+  z-index: 1;
+  box-shadow:
+    inset 0 0 0 2px var(--sage),
+    0 0 0 1px rgba(70, 112, 93, 0.16);
 }
 
 .month-day.is-today .month-day__number {
@@ -1216,120 +1225,260 @@ a {
 }
 
 .month-day__number {
-  font-size: 10px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
   font-weight: 820;
 }
 
 .month-day__date-line {
-  display: flex;
+  display: grid;
   min-width: 0;
-  align-items: center;
-  justify-content: space-between;
+  align-content: start;
+  justify-items: start;
   gap: 1px;
 }
 
 .month-day__date-line > small {
   overflow: hidden;
   color: #819087;
-  font-size: 6px;
+  font-size: 8.5px;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   white-space: nowrap;
 }
 
-.month-day__cubes {
+.month-day__sheet {
   display: grid;
   min-width: 0;
   align-content: start;
+  gap: 3px;
+}
+
+.month-day__categories {
+  display: grid;
+  min-width: 0;
   gap: 2px;
 }
 
-.month-day__cube,
-.month-day__more {
-  display: block;
+.month-day__category {
+  display: grid;
   min-width: 0;
-  padding: 2px 2px;
-  overflow: hidden;
-  border-radius: 4px;
-  color: var(--sage-dark);
-  background: rgba(208, 230, 216, 0.68);
-  font-size: 7px;
-  font-weight: 760;
-  line-height: 1.15;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  padding: 3px 2px;
+  border-radius: 5px;
+  gap: 2px;
 }
 
-.month-day__new {
+.month-day__category.is-base {
+  background: #fff5d8;
+}
+
+.month-day__category.is-topping {
+  background: #e9f5ed;
+}
+
+.month-day__category.is-snack {
+  background: #ffede3;
+}
+
+.month-day__category.is-other {
+  background: #f0edf6;
+}
+
+.month-day__category > i {
   display: block;
-  width: max-content;
-  padding: 1px 4px;
-  border-radius: 999px;
-  color: #813f2e;
-  background: #ffd3bf;
-  box-shadow: inset 0 0 0 1px rgba(167, 75, 50, 0.09);
-  font-size: 7px;
-  font-weight: 950;
-  letter-spacing: 0.04em;
+  color: #7b837f;
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.month-day__category > span,
+.month-day__new-foods {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.month-day__category b {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sage-dark);
+  font-size: 10px;
+  font-weight: 820;
   line-height: 1.15;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.month-day__cube.has-watch {
+.month-day__category b.is-empty,
+.month-day__category > span > small {
+  color: #8c948f;
+}
+
+.month-day__category b.has-watch {
   color: #744d0a;
-  background: #ffe7ac;
 }
 
-.month-day__cube b {
+.month-day__category b small {
   margin-left: 1px;
   font-size: 6px;
 }
 
-.month-day__more {
-  color: var(--muted);
-  background: transparent;
+.month-day__category > span > small {
+  font-size: 7px;
+  font-weight: 850;
 }
 
-.month-day__reactions {
-  display: flex;
+.month-day__new {
+  display: grid;
+  width: 100%;
   min-width: 0;
-  align-self: end;
-  align-items: center;
+  padding: 3px 2px;
+  border-radius: 5px;
+  color: #753b2e;
+  background: #ffddcd;
+  box-shadow: inset 0 0 0 1px rgba(167, 75, 50, 0.1);
   gap: 2px;
 }
 
-.reaction-mark {
+.month-day__new > strong {
+  display: block;
+  width: 100%;
+  padding: 2px 1px;
+  border-radius: 3px;
+  color: var(--white);
+  background: var(--apricot);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-align: center;
+}
+
+.month-day__new-foods > span {
   display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.month-day__new-foods b {
+  font-size: 10px;
+  font-weight: 880;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.month-day__new-foods > span.has-watch b {
+  color: #724800;
+}
+
+.month-day__new-foods small i,
+.month-day__reactions small i {
+  display: inline-grid;
   width: 11px;
   height: 11px;
+  margin-left: 2px;
   border-radius: 50%;
   color: var(--white);
   background: #82958a;
   font-size: 7px;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 950;
+  line-height: 1;
   place-items: center;
 }
 
-.reaction-mark--liked {
+.month-day__new-foods small.is-liked i,
+.month-day__reactions small.is-liked i {
   background: #db7666;
 }
 
-.reaction-mark--okay {
+.month-day__new-foods small.is-okay i,
+.month-day__reactions small.is-okay i {
   background: #739781;
 }
 
-.reaction-mark--disliked {
+.month-day__new-foods small.is-disliked i,
+.month-day__reactions small.is-disliked i {
   background: #9b7b91;
 }
 
-.reaction-mark--watch {
+.month-day__new-foods small.is-watch i,
+.month-day__reactions small.is-watch i {
   background: #c78022;
 }
 
-.month-day__reactions small {
-  color: var(--muted);
+.month-day__new-foods > small {
+  color: #8b5547;
   font-size: 7px;
+  font-weight: 850;
+}
+
+.month-day__new-foods > span > small {
+  display: inline-flex;
+  align-items: center;
+  color: #7d6056;
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1;
+  gap: 1px;
+}
+
+.month-day__result {
+  display: grid;
+  min-width: 0;
+  padding-top: 3px;
+  border-top: 1px dashed rgba(109, 119, 113, 0.24);
+  gap: 2px;
+}
+
+.month-day__amount {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.month-day__amount > small {
+  color: #7a827d;
+  font-size: 8.5px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.month-day__amount > b {
+  color: #525f58;
+  font-size: 9.5px;
+  font-weight: 900;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.month-day__reactions {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.month-day__reactions > em {
+  color: #7a827d;
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.month-day__reactions > small {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1;
+  gap: 2px;
 }
 
 .calendar-detail {
@@ -3166,6 +3315,19 @@ a {
   .app-shell {
     padding-right: 13px;
     padding-left: 13px;
+  }
+
+  .month-calendar {
+    margin-right: -13px;
+    margin-left: -13px;
+  }
+
+  .month-day {
+    min-height: 62px;
+  }
+
+  .month-day.has-records {
+    min-height: 172px;
   }
 
   .brand img {
