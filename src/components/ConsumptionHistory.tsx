@@ -4,20 +4,16 @@ import {
   formatHistoryTime,
   getSeoulDateKey,
 } from '../lib/date'
-import type { BabyProfile, ConsumptionRecord, CubeBatch, FoodReaction } from '../types'
-import { ConsumptionCalendar } from './ConsumptionCalendar'
+import type { ConsumptionRecord, FoodReaction } from '../types'
 import { Icon } from './Icon'
 
 interface ConsumptionHistoryProps {
-  batches: CubeBatch[]
-  profile: BabyProfile
   records: ConsumptionRecord[]
   loading: boolean
   pendingUndoId: string | null
   onShowInventory: () => void
   onUndo: (record: ConsumptionRecord) => void
   onEditReaction: (record: ConsumptionRecord) => void
-  onEditProfile: () => void
 }
 
 const reactionMeta: Record<FoodReaction, { label: string; emoji: string }> = {
@@ -125,18 +121,14 @@ function getReactionSummary(records: ConsumptionRecord[]) {
 }
 
 export function ConsumptionHistory({
-  batches,
-  profile,
   records,
   loading,
   pendingUndoId,
   onShowInventory,
   onUndo,
   onEditReaction,
-  onEditProfile,
 }: ConsumptionHistoryProps) {
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<'timeline' | 'calendar'>('timeline')
   const groups = useMemo(() => groupRecords(records), [records])
   const today = useMemo(() => getTodaySummary(records), [records])
   const week = useMemo(() => getSevenDaySummary(records), [records])
@@ -172,27 +164,6 @@ export function ConsumptionHistory({
       </div>
 
       {records.length > 0 && (
-        <div className="history-view-switch" aria-label="먹은 기록 보기 방식">
-          <button
-            aria-pressed={viewMode === 'timeline'}
-            onClick={() => setViewMode('timeline')}
-            type="button"
-          >
-            <Icon name="book" size={17} />
-            기록
-          </button>
-          <button
-            aria-pressed={viewMode === 'calendar'}
-            onClick={() => setViewMode('calendar')}
-            type="button"
-          >
-            <Icon name="calendar" size={17} />
-            달력
-          </button>
-        </div>
-      )}
-
-      {records.length > 0 && viewMode === 'timeline' && (
         <div className="week-summary" aria-label="최근 7일 먹은 큐브 수">
           <div className="week-summary__heading">
             <strong>최근 7일</strong>
@@ -228,14 +199,6 @@ export function ConsumptionHistory({
             냉동실 보기
           </button>
         </div>
-      ) : viewMode === 'calendar' ? (
-        <ConsumptionCalendar
-          batches={batches}
-          onEditProfile={onEditProfile}
-          onEditReaction={onEditReaction}
-          profile={profile}
-          records={records}
-        />
       ) : (
         <div className="history-groups">
           {groups.map((group) => (
@@ -325,7 +288,7 @@ export function ConsumptionHistory({
         </div>
       )}
 
-      {reactionSummary.length > 0 && viewMode === 'timeline' && (
+      {reactionSummary.length > 0 && (
         <details className="reaction-summary">
           <summary>
             큐브별 반응 모아보기

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BabyProfileSheet } from './components/BabyProfileSheet'
+import { ConsumptionCalendar } from './components/ConsumptionCalendar'
 import { ConsumptionHistory } from './components/ConsumptionHistory'
 import { CubeCard } from './components/CubeCard'
 import { CubeFormSheet } from './components/CubeFormSheet'
@@ -32,7 +33,7 @@ import type {
 } from './types'
 
 type BootState = 'connecting' | 'ready' | 'invite-required' | 'error'
-type AppView = 'inventory' | 'planner' | 'history'
+type AppView = 'inventory' | 'calendar' | 'planner' | 'history'
 type StockFilter = 'all' | 'available' | 'soon' | 'empty'
 
 interface ToastState {
@@ -568,6 +569,14 @@ export default function App() {
               </p>
             </details>
           </>
+        ) : activeView === 'calendar' ? (
+          <ConsumptionCalendar
+            batches={batches}
+            onEditProfile={() => setBabyProfileOpen(true)}
+            onEditReaction={setReactionEditing}
+            profile={babyProfile}
+            records={records}
+          />
         ) : activeView === 'planner' ? (
           <MealPlanner
             batches={batches}
@@ -582,14 +591,11 @@ export default function App() {
           />
         ) : (
           <ConsumptionHistory
-            batches={batches}
             loading={loading}
             onEditReaction={setReactionEditing}
-            onEditProfile={() => setBabyProfileOpen(true)}
             onShowInventory={() => setActiveView('inventory')}
             onUndo={handleUndoConsumption}
             pendingUndoId={pendingUndoId}
-            profile={babyProfile}
             records={records}
           />
         )}
@@ -609,6 +615,15 @@ export default function App() {
         >
           <Icon name="snowflake" size={21} />
           <span>냉동실</span>
+        </button>
+        <button
+          aria-label="달력"
+          aria-current={activeView === 'calendar' ? 'page' : undefined}
+          onClick={() => setActiveView('calendar')}
+          type="button"
+        >
+          <Icon name="calendar" size={21} />
+          <span>달력</span>
         </button>
         <button
           aria-label="식단"

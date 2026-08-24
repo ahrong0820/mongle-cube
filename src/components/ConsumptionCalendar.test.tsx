@@ -97,7 +97,9 @@ describe('먹은 기록 달력', () => {
       within(getCalendarDetail()).queryByRole('button', { name: /^당근 / }),
     ).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: '8월 24일, 1개 기록' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: '8월 24일, 1개 기록, 새 음식 당근' }),
+    )
 
     expect(screen.getByRole('heading', { name: /8월 24일/ })).toBeInTheDocument()
     expect(
@@ -150,7 +152,7 @@ describe('먹은 기록 달력', () => {
     )
 
     const watchedDay = screen.getByRole('button', {
-      name: '8월 25일, 2개 기록, 관찰 필요 기록 있음',
+      name: '8월 25일, 2개 기록, 관찰 필요 기록 있음, 새 음식 당근, 소고기',
     })
     expect(watchedDay).toHaveClass('has-watch')
     expect(screen.getByLabelText('관찰 필요 1개, 잘 먹음 1개')).toBeInTheDocument()
@@ -244,14 +246,50 @@ describe('먹은 기록 달력', () => {
     expect(screen.getByText('간식').closest('.daily-food-sheet__row')).toHaveTextContent(
       '사과 1개',
     )
-    const newRow = within(screen.getByText('NEW').closest('.daily-food-sheet__row')!)
+    const newRow = within(
+      screen.getByText('NEW', { selector: 'dt' }).closest('.daily-food-sheet__row')!,
+    )
     expect(newRow.getByText('쌀죽')).toBeInTheDocument()
     expect(newRow.getByText('소고기')).toBeInTheDocument()
     expect(newRow.getByText('사과')).toBeInTheDocument()
     expect(newRow.getByText('관찰 필요')).toBeInTheDocument()
     expect(screen.getAllByText('3개 · 65g')).toHaveLength(2)
 
+    const calendarDay = screen.getByRole('button', {
+      name: '8월 25일, 3개 기록, 관찰 필요 기록 있음, 새 음식 쌀죽, 소고기, 사과',
+    })
+    expect(within(calendarDay).getByText('NEW')).toBeInTheDocument()
+
     fireEvent.click(screen.getByRole('button', { name: '아기 날짜' }))
     expect(onEditProfile).toHaveBeenCalledTimes(1)
+  })
+
+  it('같은 큐브는 첫 섭취일에만 달력 NEW로 표시한다', () => {
+    render(
+      <ConsumptionCalendar
+        {...commonProps}
+        onEditReaction={vi.fn()}
+        records={[
+          makeRecord({
+            id: 'first-carrot',
+            consumedAt: '2026-08-23T23:00:00.000Z',
+            createdAt: '2026-08-23T23:00:00.000Z',
+          }),
+          makeRecord({
+            id: 'second-carrot',
+            consumedAt: '2026-08-25T00:00:00.000Z',
+            createdAt: '2026-08-25T00:00:00.000Z',
+          }),
+        ]}
+      />,
+    )
+
+    const firstDay = screen.getByRole('button', {
+      name: '8월 24일, 1개 기록, 새 음식 당근',
+    })
+    const secondDay = screen.getByRole('button', { name: '8월 25일, 1개 기록' })
+
+    expect(within(firstDay).getByText('NEW')).toBeInTheDocument()
+    expect(within(secondDay).queryByText('NEW')).not.toBeInTheDocument()
   })
 })

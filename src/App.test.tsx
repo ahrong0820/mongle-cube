@@ -78,8 +78,15 @@ describe('몽글큐브 핵심 흐름', () => {
     await user.click(screen.getByRole('button', { name: '큐브 저장' }))
     await user.click(await screen.findByRole('button', { name: '쌀죽 1개 먹은 기록 남기기' }))
 
-    await user.click(screen.getByRole('button', { name: '먹은 기록' }))
-    await user.click(await screen.findByRole('button', { name: '달력' }))
+    const navigation = screen.getByRole('navigation', { name: '주요 화면' })
+    const navigationLabels = within(navigation)
+      .getAllByRole('button')
+      .map((button) => button.getAttribute('aria-label') ?? button.textContent)
+    expect(navigationLabels).toEqual(['냉동실', '달력', '식단', '먹은 기록'])
+
+    const calendarTab = within(navigation).getByRole('button', { name: '달력' })
+    await user.click(calendarTab)
+    expect(calendarTab).toHaveAttribute('aria-current', 'page')
     expect(await screen.findByRole('heading', { name: '먹은 기록 달력' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '아기 날짜' }))
@@ -98,5 +105,9 @@ describe('몽글큐브 핵심 흐름', () => {
     expect(
       screen.queryByRole('button', { name: /D\+와 이유식 일차도 같이 볼까요/ }),
     ).not.toBeInTheDocument()
+
+    await user.click(within(navigation).getByRole('button', { name: '먹은 기록' }))
+    expect(await screen.findByRole('heading', { name: '지금까지 1개 먹었어요' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '먹은 기록 달력' })).not.toBeInTheDocument()
   })
 })

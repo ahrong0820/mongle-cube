@@ -278,7 +278,7 @@ export function ConsumptionCalendar({
       <header className="consumption-calendar__header">
         <div>
           <span className="eyebrow">달력으로 한눈에</span>
-          <h2 id="consumption-calendar-title">먹은 기록 달력</h2>
+          <h1 id="consumption-calendar-title">먹은 기록 달력</h1>
         </div>
         <div className="consumption-calendar__actions">
           <button className="consumption-calendar__profile" onClick={onEditProfile} type="button">
@@ -350,9 +350,22 @@ export function ConsumptionCalendar({
             const babyAge = getBabyAgeDays(key, profile)
             const dayRecords = recordsByDate.get(key) ?? []
             const cubeGroups = groupCubes(dayRecords)
-            const visibleCubes = cubeGroups.slice(0, 2)
+            const newFoodNames = [...new Set(
+              sortRecords(dayRecords)
+                .reverse()
+                .filter((record) => firstDateByCube.get(record.cubeName) === key)
+                .map((record) => record.cubeName),
+            )]
+            const orderedCubeGroups = [
+              ...newFoodNames.flatMap((name) => {
+                const group = cubeGroups.find((candidate) => candidate.name === name)
+                return group ? [group] : []
+              }),
+              ...cubeGroups.filter((group) => !newFoodNames.includes(group.name)),
+            ]
+            const visibleCubes = orderedCubeGroups.slice(0, newFoodNames.length > 0 ? 1 : 2)
             const hiddenCubeCount = cubeGroups
-              .slice(2)
+              .filter((group) => !visibleCubes.some((visible) => visible.name === group.name))
               .reduce((sum, group) => sum + group.count, 0)
             const reactions = getDayReactions(dayRecords)
             const visibleReactions = reactions.slice(0, 3)
@@ -363,7 +376,11 @@ export function ConsumptionCalendar({
             const spokenSummary =
               dayRecords.length === 0
                 ? '먹은 기록 없음'
-                : `${dayRecords.length}개 기록${hasWatch ? ', 관찰 필요 기록 있음' : ''}`
+                : [
+                    `${dayRecords.length}개 기록`,
+                    hasWatch ? '관찰 필요 기록 있음' : null,
+                    newFoodNames.length > 0 ? `새 음식 ${newFoodNames.join(', ')}` : null,
+                  ].filter(Boolean).join(', ')
 
             return (
               <button
@@ -375,6 +392,7 @@ export function ConsumptionCalendar({
                   isToday && 'is-today',
                   isSelected && 'is-selected',
                   dayRecords.length > 0 && 'has-records',
+                  newFoodNames.length > 0 && 'has-new',
                   hasWatch && 'has-watch',
                 ]
                   .filter(Boolean)
@@ -388,8 +406,11 @@ export function ConsumptionCalendar({
                   {babyAge !== null && <small>D+{babyAge}</small>}
                 </span>
 
-                {visibleCubes.length > 0 && (
+                {(newFoodNames.length > 0 || visibleCubes.length > 0) && (
                   <span className="month-day__cubes" aria-hidden="true">
+                    {newFoodNames.length > 0 && (
+                      <span className="month-day__new">NEW</span>
+                    )}
                     {visibleCubes.map((group) => (
                       <span
                         className={`month-day__cube ${group.hasWatch ? 'has-watch' : ''}`}
