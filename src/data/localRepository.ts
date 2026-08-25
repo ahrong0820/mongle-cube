@@ -2,6 +2,7 @@ import { calculateExpiresAt, getSeoulDateKey } from '../lib/date'
 import type {
   BabyProfile,
   ConsumptionRecord,
+  ConsumptionRecordUpdate,
   CubeBatch,
   CubeCategory,
   CubeDraft,
@@ -318,28 +319,54 @@ export class LocalCubeRepository implements CubeRepository {
     if (!['breakfast', 'lunch', 'dinner', 'snack'].includes(draft.mealSlot)) {
       throw new Error('식사 시간을 확인해 주세요.')
     }
-    if (!Number.isInteger(draft.quantity) || draft.quantity < 1 || draft.quantity > 12) {
+    if (!Array.isArray(draft.selections) || draft.selections.length === 0) {
+      throw new Error('식단에 담을 큐브를 골라 주세요.')
+    }
+    const batchIds = new Set(draft.selections.map((selection) => selection.batchId))
+    if (batchIds.size !== draft.selections.length) {
+      throw new Error('같은 큐브는 한 번만 골라 주세요.')
+    }
+    const totalQuantity = draft.selections.reduce((sum, selection) => {
+      if (!Number.isInteger(selection.quantity) || selection.quantity < 1 || selection.quantity > 12) {
+        throw new Error('큐브 종류별 개수는 1~12개로 정해 주세요.')
+      }
+      return sum + selection.quantity
+    }, 0)
+    if (totalQuantity > 12) {
       throw new Error('식단에는 한 번에 1~12개를 담을 수 있어요.')
     }
 
     const state = readState()
-    const batch = state.batches.find((item) => item.id === draft.batchId)
-    if (!batch) throw new Error('식단에 담을 큐브를 찾지 못했어요.')
+    const selectedBatches = draft.selections.map((selection) => {
+      const batch = state.batches.find((item) => item.id === selection.batchId)
+      if (!batch) throw new Error('식단에 담을 큐브를 찾지 못했어요.')
+      return { batch, quantity: selection.quantity }
+    })
+    if (new Set(selectedBatches.map(({ batch }) => batch.householdId)).size !== 1) {
+      throw new Error('같은 우리집의 큐브만 한 식단에 담을 수 있어요.')
+    }
 
     const now = new Date().toISOString()
-    const items = Array.from({ length: draft.quantity }, (_, index): MealPlanItem => ({
-      id: crypto.randomUUID(),
-      householdId: batch.householdId,
-      batchId: batch.id,
-      cubeName: batch.name,
-      unitAmount: batch.unitAmount,
-      unit: batch.unit,
-      plannedFor: draft.plannedFor,
-      mealSlot: draft.mealSlot,
-      consumptionRecordId: null,
-      createdAt: new Date(new Date(now).getTime() + index).toISOString(),
-      updatedAt: now,
-    }))
+    let itemIndex = 0
+    const items = selectedBatches.flatMap(({ batch, quantity }) =>
+      Array.from({ length: quantity }, (): MealPlanItem => {
+        const createdAt = new Date(new Date(now).getTime() + itemIndex).toISOString()
+        itemIndex += 1
+        return {
+          id: crypto.randomUUID(),
+          householdId: batch.householdId,
+          batchId: batch.id,
+          cubeName: batch.name,
+          unitAmount: batch.unitAmount,
+          unit: batch.unit,
+          plannedFor: draft.plannedFor,
+          mealSlot: draft.mealSlot,
+          consumptionRecordId: null,
+          createdAt,
+          updatedAt: now,
+        }
+      }),
+    )
 
     writeState({ ...state, mealPlanItems: [...state.mealPlanItems, ...items] })
     return items
@@ -440,6 +467,67 @@ export class LocalCubeRepository implements CubeRepository {
     if (!updated) throw new Error('반응을 남길 먹은 기록을 찾지 못했어요.')
     writeState({ ...state, consumptionRecords })
     return updated
+  }
+
+  async updateConsumptionRecord(recordId: string, update: ConsumptionRecordUpdate) {
+    const consumedAt = new Date(update.consumedAt)
+    if (Number.isNaN(consumedAt.getTime())) throw new Error('먹은 날짜와 시간을 확인해 주세요.')
+    if (consumedAt.getTime() > Date.now()) {
+      throw new Error('먹은 날짜와 시간은 현재보다 미래일 수 없어요.')
+    }
+    if (update.reaction && !['liked', 'okay', 'disliked', 'watch'].includes(update.reaction)) {
+      throw new Error('아기 반응을 확인해 주세요.')
+    }
+    const trimmedNote = update.reactionNote.trim()
+    if (trimmedNote.length > 100) throw new Error('반응 메모는 100자 이하로 적어 주세요.')
+
+    const state = readState()
+    let updated: ConsumptionRecord | undefined
+    const consumptionRecords = state.consumptionRecords.map((record) => {
+      if (record.id !== recordId || record.cancelledAt) return record
+      updated = {
+        ...record,
+        consumedAt: consumedAt.toISOString(),
+        reaction: update.reaction,
+        reactionNote: trimmedNote,
+      }
+      return updated
+    })
+    if (!updated) throw new Error('수정할 먹은 기록을 찾지 못했어요.')
+    writeState({ ...state, consumptionRecords })
+    return updated
+  }
+
+  async deleteConsumptionRecord(recordId: string) {
+    const state = readState()
+    const targetRecord = state.consumptionRecords.find((record) => record.id === recordId)
+    if (!targetRecord) throw new Error('삭제할 먹은 기록을 찾지 못했어요.')
+
+    const targetBatch = state.batches.find((batch) => batch.id === targetRecord.batchId)
+    if (targetRecord.cancelledAt) return { batch: null, stockRestored: false }
+    if (targetBatch && targetBatch.quantity >= 999) {
+      throw new Error('큐브 수량이 가득 차서 기록을 삭제할 수 없어요.')
+    }
+
+    const now = new Date().toISOString()
+    const updated = targetBatch
+      ? { ...targetBatch, quantity: targetBatch.quantity + 1, updatedAt: now }
+      : null
+    writeState({
+      ...state,
+      batches: updated
+        ? state.batches.map((batch) => (batch.id === updated.id ? updated : batch))
+        : state.batches,
+      consumptionRecords: state.consumptionRecords.map((record) =>
+        record.id === recordId ? { ...record, cancelledAt: now } : record,
+      ),
+      mealPlanItems: state.mealPlanItems.map((item) =>
+        item.consumptionRecordId === recordId
+          ? { ...item, consumptionRecordId: null, updatedAt: now }
+          : item,
+      ),
+    })
+    return { batch: updated, stockRestored: Boolean(updated) }
   }
 
   async undoConsumption(recordId: string) {

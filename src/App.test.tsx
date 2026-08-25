@@ -10,7 +10,7 @@ describe('몽글큐브 핵심 흐름', () => {
     window.history.replaceState({}, '', '/')
   })
 
-  it('첫 큐브를 등록하고 먹은 기록을 누적한 뒤 되돌린다', async () => {
+  it('첫 큐브를 등록하고 먹은 기록을 누적한 뒤 개별 삭제한다', async () => {
     const user = userEvent.setup()
     render(<App />)
 
@@ -29,8 +29,9 @@ describe('몽글큐브 핵심 흐름', () => {
     expect(await screen.findByRole('heading', { name: '지금까지 1개 먹었어요' })).toBeInTheDocument()
     expect(screen.getByText('당근', { selector: '.log-row__name strong' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '최근 기록 되돌리기' }))
-    await user.click(screen.getByRole('button', { name: '되돌리기' }))
+    await user.click(screen.getByRole('button', { name: /당근 .* 먹은 기록 수정 또는 삭제/ }))
+    await user.click(screen.getByRole('button', { name: '당근 먹은 기록 삭제' }))
+    await user.click(screen.getByRole('button', { name: '기록 삭제 확인' }))
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: '지금까지 0개 먹었어요' })).toBeInTheDocument(),
     )
@@ -39,7 +40,7 @@ describe('몽글큐브 핵심 흐름', () => {
     expect(await screen.findByLabelText('남은 수량 1개')).toBeInTheDocument()
   })
 
-  it('식단에 큐브를 계획하고 먹은 뒤 아기 반응까지 기록한다', async () => {
+  it('한 식단에 여러 큐브를 계획하고 먹은 기록을 수정한다', async () => {
     const user = userEvent.setup()
     render(<App />)
 
@@ -47,24 +48,35 @@ describe('몽글큐브 핵심 흐름', () => {
     await user.type(screen.getByLabelText(/큐브 이름/), '브로콜리')
     await user.click(screen.getByRole('button', { name: '큐브 저장' }))
 
+    await user.click(await screen.findByRole('button', { name: '큐브 추가' }))
+    await user.type(screen.getByLabelText(/큐브 이름/), '쌀죽')
+    await user.click(screen.getByRole('button', { name: '베이스' }))
+    await user.click(screen.getByRole('button', { name: '큐브 저장' }))
+
     await user.click(await screen.findByRole('button', { name: '식단' }))
     await user.click(screen.getByRole('button', { name: '아침 식단 추가' }))
-    await user.click(screen.getByRole('button', { name: '1개 계획하기' }))
+    await user.click(screen.getByRole('button', { name: '브로콜리 선택' }))
+    await user.click(screen.getByRole('button', { name: '쌀죽 선택' }))
+    await user.click(screen.getByRole('button', { name: '2종 · 총 2개 계획하기' }))
 
-    expect(await screen.findByText('브로콜리', { selector: '.plan-item__copy strong' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '먹었어요' }))
+    const broccoli = await screen.findByText('브로콜리', { selector: '.plan-item__copy strong' })
+    expect(screen.getByText('쌀죽', { selector: '.plan-item__copy strong' })).toBeInTheDocument()
+    const broccoliPlan = broccoli.closest('li')
+    expect(broccoliPlan).not.toBeNull()
+    await user.click(within(broccoliPlan as HTMLElement).getByRole('button', { name: '먹었어요' }))
 
-    await user.click(await screen.findByRole('button', { name: '반응 남기기' }))
+    await user.click(await screen.findByRole('button', { name: '기록 수정' }))
     await user.click(screen.getByRole('radio', { name: /잘 먹었어요/ }))
     await user.type(screen.getByLabelText('반응 메모'), '한 숟갈 더 찾았어요')
-    await user.click(screen.getByRole('button', { name: '반응 저장' }))
+    await user.click(screen.getByRole('button', { name: '수정 저장' }))
 
     await user.click(screen.getByRole('button', { name: '먹은 기록' }))
-    expect(await screen.findByRole('button', { name: /잘 먹음.*수정/ })).toBeInTheDocument()
+    expect(await screen.findByText('잘 먹음')).toBeInTheDocument()
     expect(screen.getByText('한 숟갈 더 찾았어요')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '냉동실' }))
     expect(await screen.findByLabelText('남은 수량 0개')).toBeInTheDocument()
+    expect(screen.getByLabelText('남은 수량 1개')).toBeInTheDocument()
   })
 
   it('달력에 아기 일수와 역할별 식단표를 함께 보여 준다', async () => {

@@ -15,7 +15,7 @@ export interface ConsumptionCalendarProps {
   batches: CubeBatch[]
   profile: BabyProfile
   records: ConsumptionRecord[]
-  onEditReaction: (record: ConsumptionRecord) => void
+  onEditRecord: (record: ConsumptionRecord) => void
   onEditProfile: () => void
 }
 
@@ -243,7 +243,7 @@ export function ConsumptionCalendar({
   batches,
   profile,
   records,
-  onEditReaction,
+  onEditRecord,
   onEditProfile,
 }: ConsumptionCalendarProps) {
   const todayKey = getSeoulDateKey(new Date())
@@ -681,13 +681,13 @@ export function ConsumptionCalendar({
                     )}
 
                     <button
-                      aria-label={`${record.cubeName} ${formatHistoryTime(record.consumedAt)} 반응과 메모 ${reaction || record.reactionNote ? '수정' : '기록'}`}
+                      aria-label={`${record.cubeName} ${formatHistoryTime(record.consumedAt)} 먹은 기록 수정 또는 삭제`}
                       className="calendar-record__edit"
-                      onClick={() => onEditReaction(record)}
+                      onClick={() => onEditRecord(record)}
                       type="button"
                     >
                       <Icon name="edit" size={15} />
-                      {reaction || record.reactionNote ? '반응·메모 수정' : '반응·메모 기록'}
+                      기록 수정·삭제
                     </button>
                   </li>
                 )

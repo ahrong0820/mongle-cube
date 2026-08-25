@@ -95,10 +95,9 @@ describe('로컬 큐브 저장소', () => {
     const created = await repository.create(draft)
 
     const items = await repository.createMealPlanItems({
-      batchId: created.id,
       plannedFor: '2026-08-24',
       mealSlot: 'lunch',
-      quantity: 2,
+      selections: [{ batchId: created.id, quantity: 2 }],
     })
 
     expect(items).toHaveLength(2)
@@ -107,14 +106,46 @@ describe('로컬 큐브 저장소', () => {
     expect(await repository.listConsumptionRecords()).toEqual([])
   })
 
+  it('서로 다른 큐브를 한 끼에 함께 담고 잘못된 선택은 전부 저장하지 않는다', async () => {
+    const repository = new LocalCubeRepository()
+    const rice = await repository.create({ ...draft, name: '쌀죽', quantity: 3 })
+    const beef = await repository.create({ ...draft, name: '소고기', quantity: 4 })
+
+    const items = await repository.createMealPlanItems({
+      plannedFor: '2026-08-24',
+      mealSlot: 'breakfast',
+      selections: [
+        { batchId: rice.id, quantity: 1 },
+        { batchId: beef.id, quantity: 2 },
+      ],
+    })
+
+    expect(items.map((item) => item.cubeName)).toEqual(['쌀죽', '소고기', '소고기'])
+    expect((await repository.list()).map((batch) => batch.quantity).sort()).toEqual([3, 4])
+
+    localStorage.clear()
+    const atomicRepository = new LocalCubeRepository()
+    const valid = await atomicRepository.create({ ...draft, name: '감자' })
+    await expect(
+      atomicRepository.createMealPlanItems({
+        plannedFor: '2026-08-24',
+        mealSlot: 'lunch',
+        selections: [
+          { batchId: valid.id, quantity: 1 },
+          { batchId: 'missing-batch', quantity: 1 },
+        ],
+      }),
+    ).rejects.toThrow('찾지 못했어요')
+    expect(await atomicRepository.listMealPlanItems()).toEqual([])
+  })
+
   it('식단 항목 완료는 1개만 차감하고 기록과 연결하며 재시도해도 중복 처리하지 않는다', async () => {
     const repository = new LocalCubeRepository()
     const created = await repository.create(draft)
     const [planItem] = await repository.createMealPlanItems({
-      batchId: created.id,
       plannedFor: '2026-08-24',
       mealSlot: 'dinner',
-      quantity: 1,
+      selections: [{ batchId: created.id, quantity: 1 }],
     })
     const requestId = '00000000-0000-4000-8000-000000000101'
 
@@ -136,10 +167,9 @@ describe('로컬 큐브 저장소', () => {
     const repository = new LocalCubeRepository()
     const created = await repository.create(draft)
     const [planItem] = await repository.createMealPlanItems({
-      batchId: created.id,
       plannedFor: '2026-08-24',
       mealSlot: 'breakfast',
-      quantity: 1,
+      selections: [{ batchId: created.id, quantity: 1 }],
     })
     const completed = await repository.completeMealPlanItem(
       planItem.id,
@@ -157,10 +187,9 @@ describe('로컬 큐브 저장소', () => {
     const repository = new LocalCubeRepository()
     const created = await repository.create({ ...draft, quantity: 0 })
     const [planItem] = await repository.createMealPlanItems({
-      batchId: created.id,
       plannedFor: '2026-08-24',
       mealSlot: 'snack',
-      quantity: 1,
+      selections: [{ batchId: created.id, quantity: 1 }],
     })
 
     await expect(
@@ -192,6 +221,95 @@ describe('로컬 큐브 저장소', () => {
     expect(updated.reaction).toBe('watch')
     expect(updated.reactionNote).toBe('입가에 조금 발적')
     expect(await repository.listConsumptionRecords()).toEqual([updated])
+    expect((await repository.list())[0].quantity).toBe(1)
+  })
+
+  it('과거 먹은 기록의 시간·반응을 수정해도 재고는 바뀌지 않는다', async () => {
+    const repository = new LocalCubeRepository()
+    const created = await repository.create(draft)
+    const consumed = await repository.consume(
+      created.id,
+      '00000000-0000-4000-8000-000000000105',
+    )
+
+    const updated = await repository.updateConsumptionRecord(consumed.record.id, {
+      consumedAt: '2026-08-22T23:30:00+09:00',
+      reaction: 'liked',
+      reactionNote: '  잘 먹었어요  ',
+    })
+
+    expect(updated.consumedAt).toBe('2026-08-22T14:30:00.000Z')
+    expect(updated.reaction).toBe('liked')
+    expect(updated.reactionNote).toBe('잘 먹었어요')
+    expect((await repository.list())[0].quantity).toBe(1)
+
+    await expect(
+      repository.updateConsumptionRecord(consumed.record.id, {
+        consumedAt: '2999-01-01T00:00:00.000Z',
+        reaction: null,
+        reactionNote: '',
+      }),
+    ).rejects.toThrow('미래일 수 없어요')
+    expect(await repository.listConsumptionRecords()).toEqual([updated])
+  })
+
+  it('최신 기록이 아니어도 선택한 기록만 삭제하고 재고를 한 번만 복원한다', async () => {
+    const repository = new LocalCubeRepository()
+    const carrot = await repository.create({ ...draft, name: '당근' })
+    const beef = await repository.create({ ...draft, name: '소고기' })
+    const first = await repository.consume(
+      carrot.id,
+      '00000000-0000-4000-8000-000000000106',
+    )
+    const second = await repository.consume(
+      beef.id,
+      '00000000-0000-4000-8000-000000000107',
+    )
+
+    const deleted = await repository.deleteConsumptionRecord(first.record.id)
+    expect(deleted.stockRestored).toBe(true)
+    expect(deleted.batch?.quantity).toBe(2)
+    expect(await repository.listConsumptionRecords()).toEqual([second.record])
+
+    const retried = await repository.deleteConsumptionRecord(first.record.id)
+    expect(retried.stockRestored).toBe(false)
+    expect((await repository.list()).find((batch) => batch.id === carrot.id)?.quantity).toBe(2)
+  })
+
+  it('원래 큐브가 삭제된 기록도 재고 복원 없이 안전하게 삭제한다', async () => {
+    const repository = new LocalCubeRepository()
+    const created = await repository.create(draft)
+    const consumed = await repository.consume(
+      created.id,
+      '00000000-0000-4000-8000-000000000110',
+    )
+    await repository.remove(created.id, consumed.batch.updatedAt)
+
+    await expect(repository.deleteConsumptionRecord(consumed.record.id)).resolves.toEqual({
+      batch: null,
+      stockRestored: false,
+    })
+    expect(await repository.listConsumptionRecords()).toEqual([])
+  })
+
+  it('식단에서 만든 과거 기록을 삭제하면 식단을 다시 예정 상태로 돌린다', async () => {
+    const repository = new LocalCubeRepository()
+    const created = await repository.create(draft)
+    const [planItem] = await repository.createMealPlanItems({
+      plannedFor: '2026-08-24',
+      mealSlot: 'breakfast',
+      selections: [{ batchId: created.id, quantity: 1 }],
+    })
+    const completed = await repository.completeMealPlanItem(
+      planItem.id,
+      '00000000-0000-4000-8000-000000000108',
+    )
+    await repository.consume(created.id, '00000000-0000-4000-8000-000000000109')
+
+    await repository.deleteConsumptionRecord(completed.record.id)
+
+    expect((await repository.listMealPlanItems())[0].consumptionRecordId).toBeNull()
+    expect(await repository.listConsumptionRecords()).toHaveLength(1)
     expect((await repository.list())[0].quantity).toBe(1)
   })
 

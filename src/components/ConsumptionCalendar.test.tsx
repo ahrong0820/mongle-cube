@@ -70,7 +70,7 @@ describe('먹은 기록 달력', () => {
     render(
       <ConsumptionCalendar
         {...commonProps}
-        onEditReaction={vi.fn()}
+        onEditRecord={vi.fn()}
         records={[
           makeRecord({
             id: 'before-midnight',
@@ -90,7 +90,7 @@ describe('먹은 기록 달력', () => {
 
     expect(
       within(getCalendarDetail()).getByRole('button', {
-        name: '브로콜리 00:00 반응과 메모 기록',
+        name: '브로콜리 00:00 먹은 기록 수정 또는 삭제',
       }),
     ).toBeInTheDocument()
     expect(
@@ -106,7 +106,7 @@ describe('먹은 기록 달력', () => {
     expect(screen.getByRole('heading', { name: /8월 24일/ })).toBeInTheDocument()
     expect(
       within(getCalendarDetail()).getByRole('button', {
-        name: '당근 23:59 반응과 메모 기록',
+        name: '당근 23:59 먹은 기록 수정 또는 삭제',
       }),
     ).toBeInTheDocument()
     expect(
@@ -115,7 +115,7 @@ describe('먹은 기록 달력', () => {
   })
 
   it('현재 월 그리드를 보여 주고 날짜를 선택한다', () => {
-    render(<ConsumptionCalendar {...commonProps} onEditReaction={vi.fn()} records={[]} />)
+    render(<ConsumptionCalendar {...commonProps} onEditRecord={vi.fn()} records={[]} />)
 
     const grid = screen.getByRole('group', { name: '2026년 8월 날짜 선택' })
     expect(within(grid).getAllByRole('button')).toHaveLength(42)
@@ -142,7 +142,7 @@ describe('먹은 기록 달력', () => {
     render(
       <ConsumptionCalendar
         {...commonProps}
-        onEditReaction={vi.fn()}
+        onEditRecord={vi.fn()}
         records={[
           makeRecord({ id: 'liked', reaction: 'liked' }),
           makeRecord({
@@ -174,7 +174,7 @@ describe('먹은 기록 달력', () => {
   })
 
   it('이전·다음 달로 이동하고 해당 월의 1일을 선택한다', () => {
-    render(<ConsumptionCalendar {...commonProps} onEditReaction={vi.fn()} records={[]} />)
+    render(<ConsumptionCalendar {...commonProps} onEditRecord={vi.fn()} records={[]} />)
 
     fireEvent.click(screen.getByRole('button', { name: '이전 달 보기' }))
     expect(screen.getByText('2026년 7월')).toBeInTheDocument()
@@ -189,7 +189,7 @@ describe('먹은 기록 달력', () => {
     render(
       <ConsumptionCalendar
         {...commonProps}
-        onEditReaction={vi.fn()}
+        onEditRecord={vi.fn()}
         records={[
           makeRecord({
             id: 'outside-month',
@@ -215,25 +215,25 @@ describe('먹은 기록 달력', () => {
     expect(within(inMonthDay).getByText('NEW')).toBeInTheDocument()
   })
 
-  it('반응과 메모 수정 버튼으로 선택한 기록을 전달한다', () => {
-    const onEditReaction = vi.fn()
+  it('기록 수정·삭제 버튼으로 선택한 기록을 전달한다', () => {
+    const onEditRecord = vi.fn()
     const record = makeRecord({ reaction: 'watch', reactionNote: '관찰 중' })
     render(
       <ConsumptionCalendar
         {...commonProps}
-        onEditReaction={onEditReaction}
+        onEditRecord={onEditRecord}
         records={[record]}
       />,
     )
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: '당근 09:00 반응과 메모 수정',
+        name: '당근 09:00 먹은 기록 수정 또는 삭제',
       }),
     )
 
-    expect(onEditReaction).toHaveBeenCalledTimes(1)
-    expect(onEditReaction).toHaveBeenCalledWith(record)
+    expect(onEditRecord).toHaveBeenCalledTimes(1)
+    expect(onEditRecord).toHaveBeenCalledWith(record)
   })
 
   it('D+, 이유식 일차와 역할별 식재료, NEW, 먹은 양을 표로 요약한다', () => {
@@ -268,7 +268,7 @@ describe('먹은 기록 달력', () => {
           makeBatch('batch-3', '사과', 'snack'),
         ]}
         onEditProfile={onEditProfile}
-        onEditReaction={vi.fn()}
+        onEditRecord={vi.fn()}
         profile={{ birthDate: '2026-03-09', weaningStartedOn: '2026-08-16' }}
         records={records}
       />,
@@ -337,7 +337,7 @@ describe('먹은 기록 달력', () => {
     render(
       <ConsumptionCalendar
         {...commonProps}
-        onEditReaction={vi.fn()}
+        onEditRecord={vi.fn()}
         records={[
           makeRecord({
             id: 'first-carrot',
@@ -371,7 +371,7 @@ describe('먹은 기록 달력', () => {
     render(
       <ConsumptionCalendar
         {...commonProps}
-        onEditReaction={vi.fn()}
+        onEditRecord={vi.fn()}
         records={['쌀', '소고기', '애호박', '브로콜리'].map((cubeName, index) =>
           makeRecord({
             id: `new-food-${index}`,

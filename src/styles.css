@@ -1812,7 +1812,7 @@ a {
 
 .calendar-record__edit {
   display: inline-flex;
-  min-height: 38px;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   padding: 0 10px;
@@ -2017,6 +2017,45 @@ a {
   font-size: 9px;
 }
 
+.reaction-row > span {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 36px;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid #dce7e0;
+  border-radius: 11px;
+  color: var(--sage-dark);
+  background: #f4faf6;
+  font-size: 11px;
+  font-weight: 760;
+  gap: 5px;
+}
+
+.reaction-row > span.is-liked {
+  color: #873d35;
+  border-color: #f2d0cb;
+  background: #fff0ed;
+}
+
+.reaction-row > span.is-disliked {
+  color: #65506b;
+  border-color: #ddd2e0;
+  background: #f3eef5;
+}
+
+.reaction-row > span.is-watch {
+  color: #744d0a;
+  border-color: #efd796;
+  background: var(--warning-soft);
+}
+
+.reaction-row > span.is-empty {
+  color: var(--muted);
+  border-color: #e4ded6;
+  background: #f7f4ef;
+}
+
 .reaction-row p {
   min-width: 0;
   padding-top: 8px;
@@ -2025,6 +2064,29 @@ a {
   color: var(--muted);
   font-size: 10px;
   line-height: 1.45;
+}
+
+.record-edit-row {
+  display: flex;
+  min-width: 0;
+  justify-content: flex-end;
+  padding: 0 0 8px 55px;
+}
+
+.record-edit-row button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 11px;
+  color: var(--sage-dark);
+  background: var(--sage-soft);
+  font-size: 11px;
+  font-weight: 780;
+  gap: 6px;
 }
 
 .reaction-summary {
@@ -2896,6 +2958,119 @@ a {
   background: var(--warning-soft);
 }
 
+.meal-plan-cube-field {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.meal-plan-cube-field__guide,
+.meal-plan-cube-field__empty {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.meal-plan-cube-field__empty {
+  padding: 14px;
+  border: 1px dashed #d9d0c5;
+  border-radius: 13px;
+  background: #fbf8f4;
+  text-align: center;
+}
+
+.meal-plan-cube-options {
+  min-width: 0;
+  margin-top: 9px;
+}
+
+.meal-plan-cube-option {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #ded5ca;
+  border-radius: 14px;
+  background: var(--white);
+  gap: 0;
+}
+
+.meal-plan-cube-option.is-short {
+  border-color: #e6bd63;
+}
+
+.reaction-option.meal-plan-cube-option__toggle {
+  min-width: 0;
+  min-height: 62px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.meal-plan-cube-option__toggle > div {
+  min-width: 0;
+}
+
+.meal-plan-cube-option__toggle strong,
+.meal-plan-cube-option__toggle > div small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.reaction-option .meal-plan-cube-option__stock {
+  min-width: 0;
+  max-width: 74px;
+  justify-self: end;
+  overflow: hidden;
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.meal-plan-cube-option__quantity {
+  display: grid;
+  min-width: 0;
+  padding: 10px 11px 11px;
+  border-top: 1px solid #e5ddd3;
+  background: #fbf8f4;
+  gap: 7px;
+}
+
+.meal-plan-cube-option__quantity > span {
+  min-width: 0;
+  overflow: hidden;
+  color: #4c5651;
+  font-size: 11px;
+  font-weight: 760;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.meal-plan-cube-option__quantity .form-stepper {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+}
+
+.meal-plan-cube-option__quantity .form-stepper button {
+  min-width: 44px;
+  min-height: 50px;
+}
+
+.stock-hint.meal-plan-cube-option__warning {
+  padding: 10px 11px;
+  margin: 0;
+  border-width: 1px 0 0;
+  border-radius: 0;
+  overflow-wrap: anywhere;
+}
+
 .stock-hint {
   margin: -3px 0 16px;
 }
@@ -3173,12 +3348,13 @@ a {
 
 .delete-confirm div {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
 }
 
 .delete-confirm button {
-  min-height: 42px;
+  min-height: 44px;
   padding: 0 14px;
   border: 1px solid #e3baba;
   border-radius: 11px;
@@ -3426,6 +3602,57 @@ a {
   .reaction-row p {
     width: 100%;
     padding-top: 0;
+  }
+
+  .record-edit-row {
+    padding-left: 49px;
+  }
+
+  .record-edit-row button {
+    width: 100%;
+  }
+
+  .sheet__header,
+  .sheet__footer {
+    padding-right: 13px;
+    padding-left: 13px;
+  }
+
+  .sheet__content {
+    padding-right: 13px;
+    padding-left: 13px;
+    overflow-x: hidden;
+  }
+
+  .reaction-sheet .cube-choice-preview {
+    grid-template-columns: 27px minmax(0, 1fr);
+  }
+
+  .reaction-sheet .cube-choice-preview > b {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .delete-confirm div button {
+    flex: 1 1 112px;
+    min-width: 0;
+  }
+
+  .sheet__footer > button {
+    min-width: 0;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .reaction-option.meal-plan-cube-option__toggle {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    padding-right: 9px;
+    padding-left: 9px;
+    gap: 7px;
+  }
+
+  .reaction-option .meal-plan-cube-option__stock {
+    max-width: 64px;
   }
 
   .meal-planner__heading h1 {

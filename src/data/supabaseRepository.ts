@@ -3,6 +3,7 @@ import { getSeoulDateKey } from '../lib/date'
 import type {
   BabyProfile,
   ConsumptionRecord,
+  ConsumptionRecordUpdate,
   CubeBatch,
   CubeCategory,
   CubeDraft,
@@ -327,11 +328,13 @@ export class SupabaseCubeRepository implements CubeRepository {
   }
 
   async createMealPlanItems(draft: MealPlanDraft) {
-    const { data, error } = await this.client.rpc('create_meal_plan_items', {
-      p_batch_id: draft.batchId,
+    const { data, error } = await this.client.rpc('create_meal_plan_selection', {
       p_planned_for: draft.plannedFor,
       p_meal_slot: draft.mealSlot,
-      p_quantity: draft.quantity,
+      p_selections: draft.selections.map((selection) => ({
+        batch_id: selection.batchId,
+        quantity: selection.quantity,
+      })),
     })
 
     if (error) throw toFriendlyWriteError(error, '식단에 큐브를 담지 못했어요.')
@@ -384,6 +387,32 @@ export class SupabaseCubeRepository implements CubeRepository {
     const row = Array.isArray(data) ? data[0] : data
     if (!row) throw new Error('반응을 남길 먹은 기록을 찾지 못했어요.')
     return mapConsumptionRow(row as ConsumptionRow)
+  }
+
+  async updateConsumptionRecord(recordId: string, update: ConsumptionRecordUpdate) {
+    const { data, error } = await this.client.rpc('update_consumption_record', {
+      p_record_id: recordId,
+      p_consumed_at: update.consumedAt,
+      p_reaction: update.reaction,
+      p_note: update.reactionNote.trim() || null,
+    })
+    if (error) throw toFriendlyWriteError(error, '먹은 기록을 수정하지 못했어요.')
+    const row = Array.isArray(data) ? data[0] : data
+    if (!row) throw new Error('수정할 먹은 기록을 찾지 못했어요.')
+    return mapConsumptionRow(row as ConsumptionRow)
+  }
+
+  async deleteConsumptionRecord(recordId: string) {
+    const { data, error } = await this.client.rpc('delete_consumption_record', {
+      p_record_id: recordId,
+    })
+    if (error) throw toFriendlyWriteError(error, '먹은 기록을 삭제하지 못했어요.')
+    const result = data as { batch?: CubeRow | null; stock_restored?: boolean } | null
+    if (!result) throw new Error('삭제할 먹은 기록을 찾지 못했어요.')
+    return {
+      batch: result.batch ? mapRow(result.batch) : null,
+      stockRestored: Boolean(result.stock_restored),
+    }
   }
 
   async undoConsumption(recordId: string) {

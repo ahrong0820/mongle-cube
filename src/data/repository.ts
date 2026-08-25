@@ -2,8 +2,10 @@ import type {
   BabyProfile,
   ConsumeResult,
   ConsumptionRecord,
+  ConsumptionRecordUpdate,
   CubeBatch,
   CubeDraft,
+  DeleteConsumptionResult,
   FoodReaction,
   MealPlanDraft,
   MealPlanItem,
@@ -31,6 +33,11 @@ export interface CubeRepository {
     reaction: FoodReaction | null,
     note: string,
   ): Promise<ConsumptionRecord>
+  updateConsumptionRecord(
+    recordId: string,
+    update: ConsumptionRecordUpdate,
+  ): Promise<ConsumptionRecord>
+  deleteConsumptionRecord(recordId: string): Promise<DeleteConsumptionResult>
   undoConsumption(recordId: string): Promise<CubeBatch>
   incrementQuantity(id: string): Promise<CubeBatch>
   remove(id: string, expectedUpdatedAt: string): Promise<void>

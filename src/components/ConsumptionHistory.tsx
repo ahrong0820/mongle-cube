@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   formatHistoryDateLabel,
   formatHistoryTime,
@@ -10,10 +10,8 @@ import { Icon } from './Icon'
 interface ConsumptionHistoryProps {
   records: ConsumptionRecord[]
   loading: boolean
-  pendingUndoId: string | null
   onShowInventory: () => void
-  onUndo: (record: ConsumptionRecord) => void
-  onEditReaction: (record: ConsumptionRecord) => void
+  onEditRecord: (record: ConsumptionRecord) => void
 }
 
 const reactionMeta: Record<FoodReaction, { label: string; emoji: string }> = {
@@ -123,12 +121,9 @@ function getReactionSummary(records: ConsumptionRecord[]) {
 export function ConsumptionHistory({
   records,
   loading,
-  pendingUndoId,
   onShowInventory,
-  onUndo,
-  onEditReaction,
+  onEditRecord,
 }: ConsumptionHistoryProps) {
-  const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const groups = useMemo(() => groupRecords(records), [records])
   const today = useMemo(() => getTodaySummary(records), [records])
   const week = useMemo(() => getSevenDaySummary(records), [records])
@@ -142,7 +137,6 @@ export function ConsumptionHistory({
     }
     return new Set([...firstByCube.values()].map((record) => record.id))
   }, [records])
-  const latestId = groups[0]?.records[0]?.id ?? null
 
   return (
     <section className="history-section" aria-labelledby="history-title">
@@ -209,7 +203,6 @@ export function ConsumptionHistory({
               </header>
               <ol>
                 {group.records.map((record) => {
-                  const isLatest = record.id === latestId
                   const unitText =
                     record.unitAmount && record.unit
                       ? `${record.unitAmount}${record.unit}`
@@ -233,52 +226,32 @@ export function ConsumptionHistory({
                       </div>
 
                       <div className="reaction-row">
-                        <button onClick={() => onEditReaction(record)} type="button">
+                        <span className={record.reaction ? `is-${record.reaction}` : 'is-empty'}>
                           {record.reaction ? (
                             <>
                               <span aria-hidden="true">{reactionMeta[record.reaction].emoji}</span>
                               {reactionMeta[record.reaction].label}
-                              <small>수정</small>
                             </>
                           ) : (
                             <>
-                              <span aria-hidden="true">＋</span>
-                              아기 반응 기록
+                              <span aria-hidden="true">○</span>
+                              반응 미기록
                             </>
                           )}
-                        </button>
+                        </span>
                         {record.reactionNote && <p>{record.reactionNote}</p>}
                       </div>
 
-                      {isLatest && (
-                        <div className="undo-row">
-                          {confirmingId === record.id ? (
-                            <>
-                              <span>잘못 누른 기록인가요?</span>
-                              <button
-                                disabled={pendingUndoId === record.id}
-                                onClick={() => setConfirmingId(null)}
-                                type="button"
-                              >
-                                아니요
-                              </button>
-                              <button
-                                className="undo-row__confirm"
-                                disabled={pendingUndoId === record.id}
-                                onClick={() => onUndo(record)}
-                                type="button"
-                              >
-                                {pendingUndoId === record.id ? '되돌리는 중' : '되돌리기'}
-                              </button>
-                            </>
-                          ) : (
-                            <button onClick={() => setConfirmingId(record.id)} type="button">
-                              <Icon name="refresh" size={15} />
-                              최근 기록 되돌리기
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      <div className="record-edit-row">
+                        <button
+                          aria-label={`${record.cubeName} ${formatHistoryTime(record.consumedAt)} 먹은 기록 수정 또는 삭제`}
+                          onClick={() => onEditRecord(record)}
+                          type="button"
+                        >
+                          <Icon name="edit" size={15} />
+                          기록 수정·삭제
+                        </button>
+                      </div>
                     </li>
                   )
                 })}

@@ -48,6 +48,17 @@ export interface ConsumptionRecord {
   reactionNote: string
 }
 
+export interface ConsumptionRecordUpdate {
+  consumedAt: string
+  reaction: FoodReaction | null
+  reactionNote: string
+}
+
+export interface DeleteConsumptionResult {
+  batch: CubeBatch | null
+  stockRestored: boolean
+}
+
 export interface ConsumeResult {
   batch: CubeBatch
   record: ConsumptionRecord
@@ -67,11 +78,15 @@ export interface MealPlanItem {
   updatedAt: string
 }
 
-export interface MealPlanDraft {
+export interface MealPlanSelectionDraft {
   batchId: string
+  quantity: number
+}
+
+export interface MealPlanDraft {
   plannedFor: string
   mealSlot: MealSlot
-  quantity: number
+  selections: MealPlanSelectionDraft[]
 }
 
 export interface PlanItemConsumeResult extends ConsumeResult {

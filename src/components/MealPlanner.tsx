@@ -36,7 +36,7 @@ export interface MealPlannerProps {
   onAdd: (plannedFor: string, mealSlot?: MealSlot) => void
   onComplete: (item: MealPlanItem) => void
   onRemove: (item: MealPlanItem) => void
-  onEditReaction?: (record: ConsumptionRecord) => void
+  onEditRecord?: (record: ConsumptionRecord) => void
 }
 
 interface DateParts {
@@ -114,7 +114,7 @@ export function MealPlanner({
   onAdd,
   onComplete,
   onRemove,
-  onEditReaction,
+  onEditRecord,
 }: MealPlannerProps) {
   const [uncontrolledDate, setUncontrolledDate] = useState(() => getSeoulDateKey(new Date()))
   const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null)
@@ -403,15 +403,15 @@ export function MealPlanner({
                                     <small>{formatUnit(item)}</small>
                                   </div>
                                 </div>
-                                {record && onEditReaction && (
+                                {record && onEditRecord && (
                                   <button
                                     className={`plan-item__reaction ${record.reaction ? 'has-reaction' : ''}`}
-                                    onClick={() => onEditReaction(record)}
+                                    onClick={() => onEditRecord(record)}
                                     type="button"
                                   >
                                     {record.reaction
-                                      ? REACTION_LABELS[record.reaction]
-                                      : '반응 남기기'}
+                                      ? `${REACTION_LABELS[record.reaction]} · 수정`
+                                      : '기록 수정'}
                                   </button>
                                 )}
                               </li>

@@ -31,6 +31,36 @@ const cubeRow = {
   deleted_at: null,
 }
 
+const consumptionRow = {
+  id: '30000000-0000-4000-8000-000000000001',
+  household_id: householdId,
+  batch_id: cubeRow.id,
+  cube_name: cubeRow.name,
+  unit_amount: cubeRow.unit_amount,
+  unit: cubeRow.unit,
+  consumed_at: '2026-08-24T01:00:00.000Z',
+  created_at: '2026-08-24T01:00:00.000Z',
+  cancelled_at: null,
+  plan_item_id: null,
+  reaction: null,
+  reaction_note: null,
+}
+
+const mealPlanRow = {
+  id: '40000000-0000-4000-8000-000000000001',
+  household_id: householdId,
+  batch_id: cubeRow.id,
+  cube_name: cubeRow.name,
+  unit_amount: cubeRow.unit_amount,
+  unit: cubeRow.unit,
+  planned_for: '2026-08-25',
+  meal_slot: 'breakfast',
+  consumption_record_id: null,
+  created_at: '2026-08-24T02:00:00.000Z',
+  updated_at: '2026-08-24T02:00:00.000Z',
+  deleted_at: null,
+}
+
 function asClient(client: object) {
   return client as unknown as SupabaseClient
 }
@@ -112,6 +142,68 @@ describe('Supabase 큐브 저장소', () => {
       p_memo: cubeDraft.memo,
     })
     expect(updated.category).toBe('snack')
+  })
+
+  it('여러 큐브 선택을 한 번의 식단 RPC로 저장한다', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [mealPlanRow], error: null })
+    const repository = new SupabaseCubeRepository(asClient({ rpc }), householdId)
+
+    const items = await repository.createMealPlanItems({
+      plannedFor: '2026-08-25',
+      mealSlot: 'breakfast',
+      selections: [
+        { batchId: cubeRow.id, quantity: 1 },
+        { batchId: '20000000-0000-4000-8000-000000000002', quantity: 2 },
+      ],
+    })
+
+    expect(rpc).toHaveBeenCalledWith('create_meal_plan_selection', {
+      p_planned_for: '2026-08-25',
+      p_meal_slot: 'breakfast',
+      p_selections: [
+        { batch_id: cubeRow.id, quantity: 1 },
+        { batch_id: '20000000-0000-4000-8000-000000000002', quantity: 2 },
+      ],
+    })
+    expect(items[0]).toMatchObject({ cubeName: cubeRow.name, mealSlot: 'breakfast' })
+  })
+
+  it('먹은 날짜·반응·메모를 수정 RPC에 전달한다', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { ...consumptionRow, consumed_at: '2026-08-22T14:30:00.000Z', reaction: 'liked' },
+      error: null,
+    })
+    const repository = new SupabaseCubeRepository(asClient({ rpc }), householdId)
+
+    const updated = await repository.updateConsumptionRecord(consumptionRow.id, {
+      consumedAt: '2026-08-22T14:30:00.000Z',
+      reaction: 'liked',
+      reactionNote: ' 잘 먹었어요 ',
+    })
+
+    expect(rpc).toHaveBeenCalledWith('update_consumption_record', {
+      p_record_id: consumptionRow.id,
+      p_consumed_at: '2026-08-22T14:30:00.000Z',
+      p_reaction: 'liked',
+      p_note: '잘 먹었어요',
+    })
+    expect(updated).toMatchObject({ reaction: 'liked', consumedAt: '2026-08-22T14:30:00.000Z' })
+  })
+
+  it('과거 먹은 기록 삭제 결과의 재고 복원 여부를 매핑한다', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { batch: { ...cubeRow, quantity: 5 }, stock_restored: true },
+      error: null,
+    })
+    const repository = new SupabaseCubeRepository(asClient({ rpc }), householdId)
+
+    const result = await repository.deleteConsumptionRecord(consumptionRow.id)
+
+    expect(rpc).toHaveBeenCalledWith('delete_consumption_record', {
+      p_record_id: consumptionRow.id,
+    })
+    expect(result.stockRestored).toBe(true)
+    expect(result.batch?.quantity).toBe(5)
   })
 
   it('가구 행에서 아기 프로필을 읽어 앱 필드로 매핑한다', async () => {

@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BabyProfileSheet } from './components/BabyProfileSheet'
 import { ConsumptionCalendar } from './components/ConsumptionCalendar'
 import { ConsumptionHistory } from './components/ConsumptionHistory'
+import { ConsumptionRecordFormSheet } from './components/ConsumptionRecordFormSheet'
 import { CubeCard } from './components/CubeCard'
 import { CubeFormSheet } from './components/CubeFormSheet'
 import { Icon } from './components/Icon'
 import { MealPlanFormSheet } from './components/MealPlanFormSheet'
 import { MealPlanner } from './components/MealPlanner'
-import { ReactionFormSheet } from './components/ReactionFormSheet'
 import { Toast } from './components/Toast'
 import { connectRepository } from './data/connectRepository'
 import {
@@ -24,9 +24,9 @@ import {
 import type {
   BabyProfile,
   ConsumptionRecord,
+  ConsumptionRecordUpdate,
   CubeBatch,
   CubeDraft,
-  FoodReaction,
   MealPlanDraft,
   MealPlanItem,
   MealSlot,
@@ -62,12 +62,11 @@ export default function App() {
   const [mealPlanFormOpen, setMealPlanFormOpen] = useState(false)
   const [mealPlanInitialDate, setMealPlanInitialDate] = useState(() => getSeoulDateKey(new Date()))
   const [mealPlanInitialSlot, setMealPlanInitialSlot] = useState<MealSlot | undefined>()
-  const [reactionEditing, setReactionEditing] = useState<ConsumptionRecord | null>(null)
+  const [recordEditing, setRecordEditing] = useState<ConsumptionRecord | null>(null)
   const [babyProfileOpen, setBabyProfileOpen] = useState(false)
   const [stockFilter, setStockFilter] = useState<StockFilter>('all')
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
   const [pendingPlanIds, setPendingPlanIds] = useState<Set<string>>(new Set())
-  const [pendingUndoId, setPendingUndoId] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastState | null>(null)
 
   const showToast = useCallback((message: string, tone: ToastState['tone'] = 'success') => {
@@ -235,28 +234,11 @@ export default function App() {
     }
   }
 
-  const handleUndoConsumption = async (record: ConsumptionRecord) => {
-    if (!repository || pendingUndoId) return
-    setPendingUndoId(record.id)
-
-    try {
-      replaceBatch(await repository.undoConsumption(record.id))
-      setRecords((current) => current.filter((item) => item.id !== record.id))
-      showToast(`${record.cubeName} 먹은 기록을 되돌렸어요.`)
-      await loadData()
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : '기록을 되돌리지 못했어요.', 'error')
-      await loadData()
-    } finally {
-      setPendingUndoId(null)
-    }
-  }
-
   const handleCreateMealPlan = async (draft: MealPlanDraft) => {
     if (!repository) throw new Error('저장소가 아직 준비되지 않았어요.')
     const created = await repository.createMealPlanItems(draft)
     setMealPlanItems((current) => [...current, ...created])
-    showToast(`${created[0]?.cubeName ?? '큐브'} ${created.length}개를 식단에 담았어요.`)
+    showToast(`${draft.selections.length}종 · 총 ${created.length}개를 식단에 담았어요.`)
     await loadData()
   }
 
@@ -307,21 +289,34 @@ export default function App() {
     }
   }
 
-  const handleSaveReaction = async (
-    reaction: FoodReaction | null,
-    note: string,
-  ) => {
-    if (!repository || !reactionEditing) throw new Error('먹은 기록을 찾지 못했어요.')
-    const updated = await repository.updateConsumptionReaction(
-      reactionEditing.id,
-      reaction,
-      note,
-    )
+  const handleSaveConsumptionRecord = async (update: ConsumptionRecordUpdate) => {
+    if (!repository || !recordEditing) throw new Error('먹은 기록을 찾지 못했어요.')
+    const updated = await repository.updateConsumptionRecord(recordEditing.id, update)
     setRecords((current) =>
       current.map((record) => (record.id === updated.id ? updated : record)),
     )
-    setReactionEditing(updated)
-    showToast('아기 반응을 기록했어요.')
+    showToast(`${updated.cubeName} 먹은 기록을 수정했어요.`)
+  }
+
+  const handleDeleteConsumptionRecord = async () => {
+    if (!repository || !recordEditing) throw new Error('먹은 기록을 찾지 못했어요.')
+    const deleting = recordEditing
+    const result = await repository.deleteConsumptionRecord(deleting.id)
+    if (result.batch) replaceBatch(result.batch)
+    setRecords((current) => current.filter((record) => record.id !== deleting.id))
+    setMealPlanItems((current) =>
+      current.map((item) =>
+        item.consumptionRecordId === deleting.id
+          ? { ...item, consumptionRecordId: null }
+          : item,
+      ),
+    )
+    showToast(
+      result.stockRestored
+        ? `${deleting.cubeName} 기록을 삭제하고 재고 1개를 복원했어요.`
+        : `${deleting.cubeName} 기록을 삭제했어요. 원래 큐브가 없거나 이미 처리되어 재고는 바뀌지 않았어요.`,
+    )
+    await loadData()
   }
 
   const handleSaveBabyProfile = async (profile: BabyProfile) => {
@@ -573,7 +568,7 @@ export default function App() {
           <ConsumptionCalendar
             batches={batches}
             onEditProfile={() => setBabyProfileOpen(true)}
-            onEditReaction={setReactionEditing}
+            onEditRecord={setRecordEditing}
             profile={babyProfile}
             records={records}
           />
@@ -584,7 +579,7 @@ export default function App() {
             loading={loading}
             onAdd={openMealPlanForm}
             onComplete={handleCompleteMealPlanItem}
-            onEditReaction={setReactionEditing}
+            onEditRecord={setRecordEditing}
             onRemove={handleRemoveMealPlanItem}
             pendingIds={pendingPlanIds}
             records={records}
@@ -592,10 +587,8 @@ export default function App() {
         ) : (
           <ConsumptionHistory
             loading={loading}
-            onEditReaction={setReactionEditing}
+            onEditRecord={setRecordEditing}
             onShowInventory={() => setActiveView('inventory')}
-            onUndo={handleUndoConsumption}
-            pendingUndoId={pendingUndoId}
             records={records}
           />
         )}
@@ -668,11 +661,12 @@ export default function App() {
         open={mealPlanFormOpen}
       />
 
-      <ReactionFormSheet
-        onClose={() => setReactionEditing(null)}
-        onSave={handleSaveReaction}
-        open={Boolean(reactionEditing)}
-        record={reactionEditing}
+      <ConsumptionRecordFormSheet
+        onClose={() => setRecordEditing(null)}
+        onDelete={handleDeleteConsumptionRecord}
+        onSave={handleSaveConsumptionRecord}
+        open={Boolean(recordEditing)}
+        record={recordEditing}
       />
 
       <BabyProfileSheet
