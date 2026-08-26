@@ -66,6 +66,8 @@ export interface CubeDraft {
 export interface BabyProfile {
   birthDate: string | null
   weaningStartedOn: string | null
+  babyName?: string | null
+  displayName?: string | null
 }
 
 export interface ConsumptionRecord {
