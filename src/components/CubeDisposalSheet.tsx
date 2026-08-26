@@ -90,7 +90,7 @@ export function CubeDisposalSheet({
 
           <ul className="disposal-sheet__notes">
             <li>과거에 먹은 기록과 아기 반응은 그대로 보존돼요.</li>
-            <li>이 제작 배치는 재고 없음으로 이동하고 `{batch.quantity}개 폐기`로 표시돼요.</li>
+            <li>이 제작 배치는 재고 없음으로 이동하고 {batch.quantity}개 폐기로 표시돼요.</li>
             <li>실수했다면 폐기 기록 취소로 {batch.quantity}개를 다시 복원할 수 있어요.</li>
           </ul>
 
