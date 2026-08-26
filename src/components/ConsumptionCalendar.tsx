@@ -480,12 +480,23 @@ export function ConsumptionCalendar({
                               <b className="is-empty">—</b>
                             ) : (
                               <>
-                                {groups.slice(0, 2).map((group) => (
-                                  <b className={group.hasWatch ? 'has-watch' : ''} key={group.name}>
-                                    {group.name}
-                                    {group.count > 1 && <small>×{group.count}</small>}
-                                  </b>
-                                ))}
+                                {groups.slice(0, 2).map((group) => {
+                                  const reaction = getStrongestReaction(group.records)
+                                  return (
+                                    <b className={group.hasWatch ? 'has-watch' : ''} key={group.name}>
+                                      {group.name}
+                                      {reaction && (
+                                        <i
+                                          className={`month-day__category-reaction is-${reaction}`}
+                                          title={`${group.name} · ${REACTION_META[reaction].label}`}
+                                        >
+                                          {REACTION_META[reaction].symbol}
+                                        </i>
+                                      )}
+                                      {group.count > 1 && <small>×{group.count}</small>}
+                                    </b>
+                                  )
+                                })}
                                 {groups.length > 2 && <small>+{groups.length - 2}</small>}
                               </>
                             )}

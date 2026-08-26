@@ -10,3 +10,36 @@
 .month-day__date-line > small {
   line-height: 1.2;
 }
+
+/* Mirror NEW reaction badges beside each category menu without the text label. */
+.month-day__category-reaction {
+  display: inline-grid;
+  width: 11px;
+  height: 11px;
+  margin-left: 2px;
+  border-radius: 50%;
+  color: var(--white);
+  background: #82958a;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+  vertical-align: -1px;
+  place-items: center;
+}
+
+.month-day__category-reaction.is-liked {
+  background: #db7666;
+}
+
+.month-day__category-reaction.is-okay {
+  background: #739781;
+}
+
+.month-day__category-reaction.is-disliked {
+  background: #9b7b91;
+}
+
+.month-day__category-reaction.is-watch {
+  background: #c78022;
+}
