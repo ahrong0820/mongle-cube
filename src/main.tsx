@@ -7,5 +7,6 @@ import './timeline-summary.css'
 import './ui-polish.css'
 import './ingredient-model.css'
 import './disposal.css'
+import './inventory-history.css'
 
 createRoot(document.getElementById('root')!).render(<App />)
