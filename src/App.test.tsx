@@ -79,7 +79,7 @@ describe('몽글큐브 핵심 흐름', () => {
     expect(screen.getByLabelText('남은 수량 1개')).toBeInTheDocument()
   })
 
-  it('달력에 아기 일수와 역할별 식단표를 함께 보여 준다', async () => {
+  it('메인에 아기 D+와 이유식 일차를, 달력에는 이유식 일차와 역할별 식단표를 보여 준다', async () => {
     const user = userEvent.setup()
     const today = getSeoulDateKey(new Date())
     render(<App />)
@@ -107,8 +107,9 @@ describe('몽글큐브 핵심 흐름', () => {
     await user.click(screen.getByRole('button', { name: '날짜 저장' }))
 
     expect(
-      await screen.findByText('D+1 · 이유식 1일차', {}, { timeout: 5_000 }),
+      await screen.findByText('이유식 1일차', { selector: '.calendar-detail__timeline' }),
     ).toBeInTheDocument()
+    expect(screen.queryByText('D+1')).not.toBeInTheDocument()
     const overview = screen.getByRole('region', { name: '먹은 내용 한눈에 보기' })
     expect(within(overview).getByText('베이스').closest('.daily-food-sheet__row')).toHaveTextContent(
       '쌀죽 1개',
@@ -117,8 +118,12 @@ describe('몽글큐브 핵심 흐름', () => {
       '쌀죽',
     )
     expect(
-      screen.queryByRole('button', { name: /D\+와 이유식 일차도 같이 볼까요/ }),
+      screen.queryByRole('button', { name: /생일과 이유식 시작일을 설정할까요/ }),
     ).not.toBeInTheDocument()
+
+    await user.click(within(navigation).getByRole('button', { name: '냉동실' }))
+    expect(await screen.findByText('D+1', { selector: '.home-timeline-chip' })).toBeInTheDocument()
+    expect(screen.getByText('이유식 1일차', { selector: '.home-timeline-chip' })).toBeInTheDocument()
 
     await user.click(within(navigation).getByRole('button', { name: '먹은 기록' }))
     expect(await screen.findByRole('heading', { name: '지금까지 1개 먹었어요' })).toBeInTheDocument()

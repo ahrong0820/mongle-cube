@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { getBabyAgeDays, getWeaningDay } from '../lib/baby'
+import { getWeaningDay } from '../lib/baby'
 import { formatHistoryTime, getSeoulDateKey } from '../lib/date'
 import type {
   BabyProfile,
@@ -360,8 +360,8 @@ export function ConsumptionCalendar({
         <button className="baby-timeline-prompt" onClick={onEditProfile} type="button">
           <span aria-hidden="true"><Icon name="calendar" size={19} /></span>
           <span>
-            <strong>D+와 이유식 일차도 같이 볼까요?</strong>
-            <small>생일과 시작일은 한 번만 설정하면 돼요.</small>
+            <strong>생일과 이유식 시작일을 설정할까요?</strong>
+            <small>메인 D+와 달력 이유식 일차를 자동으로 계산해요.</small>
           </span>
           <Icon name="chevron" size={17} />
         </button>
@@ -407,7 +407,7 @@ export function ConsumptionCalendar({
         >
           {calendarDays.map((date) => {
             const key = formatDateKey(date)
-            const babyAge = getBabyAgeDays(key, profile)
+            const weaningDay = getWeaningDay(key, profile)
             const dayRecords = recordsByDate.get(key) ?? []
             const daySummary = buildCalendarDaySummary(
               dayRecords,
@@ -432,7 +432,7 @@ export function ConsumptionCalendar({
                 ? '먹은 기록 없음'
                 : [
                     `${dayRecords.length}개 기록`,
-                    babyAge !== null ? `D+${babyAge}` : null,
+                    weaningDay !== null ? `이유식 ${weaningDay}일차` : null,
                     hasWatch ? '관찰 필요 기록 있음' : null,
                     ...categorySummary,
                     daySummary.newFoods.length > 0
@@ -463,7 +463,7 @@ export function ConsumptionCalendar({
               >
                 <span className="month-day__date-line">
                   <span className="month-day__number">{date.getUTCDate()}</span>
-                  {babyAge !== null && <small>D+{babyAge}</small>}
+                  {weaningDay !== null && <small>이유식 {weaningDay}일차</small>}
                 </span>
 
                 {showDaySheet && (
@@ -515,11 +515,17 @@ export function ConsumptionCalendar({
                               key={name}
                               title={`${name} · ${reaction ? REACTION_META[reaction].label : '반응 미기록'}`}
                             >
-                              <b>{name}</b>
-                              <small className={reaction ? `is-${reaction}` : 'is-empty'}>
-                                {reaction && <i>{REACTION_META[reaction].symbol}</i>}
-                                {reaction ? REACTION_META[reaction].shortLabel : '미기록'}
-                              </small>
+                              <b>
+                                {name}
+                                {reaction && (
+                                  <i
+                                    className={`month-day__category-reaction is-${reaction}`}
+                                    title={`${name} · ${REACTION_META[reaction].label}`}
+                                  >
+                                    {REACTION_META[reaction].symbol}
+                                  </i>
+                                )}
+                              </b>
                             </span>
                           ))}
                         </span>
@@ -530,20 +536,6 @@ export function ConsumptionCalendar({
                       <span className="month-day__amount">
                         <small>먹은 양</small>
                         <b>{getAmountSummary(dayRecords)}</b>
-                      </span>
-                      <span className="month-day__reactions">
-                        <em>반응</em>
-                        {daySummary.reactions.length > 0 ? (
-                          daySummary.reactions.map(([reaction, count]) => (
-                            <small className={`is-${reaction}`} key={reaction}>
-                              <i>{REACTION_META[reaction].symbol}</i>
-                              {REACTION_META[reaction].shortLabel}
-                              {count > 1 && `×${count}`}
-                            </small>
-                          ))
-                        ) : (
-                          <small className="is-empty">—</small>
-                        )}
                       </span>
                     </span>
                   </span>
@@ -559,17 +551,9 @@ export function ConsumptionCalendar({
           <div>
             <span>{selectedDate === todayKey ? '오늘' : '선택한 날'}</span>
             <h3 id="calendar-detail-title">{formatDateHeading(selectedDate)}</h3>
-            {(getBabyAgeDays(selectedDate, profile) !== null ||
-              getWeaningDay(selectedDate, profile) !== null) && (
+            {getWeaningDay(selectedDate, profile) !== null && (
               <small className="calendar-detail__timeline">
-                {[
-                  getBabyAgeDays(selectedDate, profile) !== null
-                    ? `D+${getBabyAgeDays(selectedDate, profile)}`
-                    : null,
-                  getWeaningDay(selectedDate, profile) !== null
-                    ? `이유식 ${getWeaningDay(selectedDate, profile)}일차`
-                    : null,
-                ].filter(Boolean).join(' · ')}
+                이유식 {getWeaningDay(selectedDate, profile)}일차
               </small>
             )}
           </div>

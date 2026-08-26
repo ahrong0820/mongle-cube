@@ -1,0 +1,14 @@
+/* Keep baby D+ and weaning day visible inside the green home summary card. */
+.home-timeline-chip {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  padding: 3px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 255, 255, 0.11);
+  font-size: 11px;
+  font-weight: 760;
+  white-space: nowrap;
+}

@@ -1,4 +1,4 @@
-/* Keep the calendar date header tall enough when baby D+ information is shown. */
+/* Keep the calendar date header tall enough when weaning-day information is shown. */
 .month-day {
   grid-template-rows: max-content minmax(0, 1fr);
 }
@@ -8,6 +8,8 @@
 }
 
 .month-day__date-line > small {
+  font-size: 7px;
+  letter-spacing: -0.04em;
   line-height: 1.2;
 }
 

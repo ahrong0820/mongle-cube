@@ -163,7 +163,6 @@ describe('먹은 기록 달력', () => {
     })
     expect(watchedDay).toHaveClass('has-watch')
     expect(watchedDay).toHaveAccessibleName(/반응 관찰 필요 1개, 잘 먹음 1개/)
-    expect(within(watchedDay).getAllByText('관찰')).not.toHaveLength(0)
 
     const detail = within(getCalendarDetail())
     expect(detail.getByRole('button', { name: /^당근 09:00/ })).toBeInTheDocument()
@@ -236,7 +235,7 @@ describe('먹은 기록 달력', () => {
     expect(onEditRecord).toHaveBeenCalledWith(record)
   })
 
-  it('D+, 이유식 일차와 역할별 식재료, NEW, 먹은 양을 표로 요약한다', () => {
+  it('이유식 일차와 역할별 식재료, NEW, 먹은 양을 표로 요약한다', () => {
     const onEditProfile = vi.fn()
     const records = [
       makeRecord({ cubeName: '쌀죽', unitAmount: 20 }),
@@ -274,7 +273,8 @@ describe('먹은 기록 달력', () => {
       />,
     )
 
-    expect(screen.getByText('D+170 · 이유식 10일차')).toBeInTheDocument()
+    expect(screen.getByText('이유식 10일차', { selector: '.calendar-detail__timeline' })).toBeInTheDocument()
+    expect(screen.queryByText('D+170')).not.toBeInTheDocument()
     const detailSheet = within(getCalendarDetail())
     expect(detailSheet.getByText('베이스').closest('.daily-food-sheet__row')).toHaveTextContent(
       '쌀죽 1개',
@@ -295,10 +295,10 @@ describe('먹은 기록 달력', () => {
     expect(detailSheet.getAllByText('3개 · 65g')).toHaveLength(2)
 
     const calendarDay = screen.getByRole('button', {
-      name: /^8월 25일, 3개 기록, D\+170, 관찰 필요 기록 있음,/,
+      name: /^8월 25일, 3개 기록, 이유식 10일차, 관찰 필요 기록 있음,/,
     })
     const calendarCell = within(calendarDay)
-    expect(calendarCell.getByText('D+170')).toBeInTheDocument()
+    expect(calendarCell.getByText('이유식 10일차')).toBeInTheDocument()
     expect(calendarDay.querySelector('.month-day__category.is-base')).toHaveTextContent(
       '베이스쌀죽',
     )
@@ -312,21 +312,20 @@ describe('먹은 기록 달력', () => {
     expect(calendarDay).toHaveAccessibleName(/토핑 소고기 1개/)
     expect(calendarDay).toHaveAccessibleName(/간식 사과 1개/)
 
-    const calendarNew = within(calendarDay.querySelector('.month-day__new')!)
+    const calendarNewElement = calendarDay.querySelector('.month-day__new') as HTMLElement
+    const calendarNew = within(calendarNewElement)
     expect(calendarNew.getByText('NEW')).toBeInTheDocument()
     expect(calendarNew.getByText('쌀죽')).toBeInTheDocument()
     expect(calendarNew.getByText('소고기')).toBeInTheDocument()
     expect(calendarNew.getByText('사과')).toBeInTheDocument()
-    expect(calendarNew.getByTitle('쌀죽 · 반응 미기록')).toBeInTheDocument()
-    expect(calendarNew.getByTitle('소고기 · 관찰 필요')).toBeInTheDocument()
-    expect(calendarNew.getByTitle('사과 · 잘 먹음')).toBeInTheDocument()
-    expect(calendarNew.getByText('미기록')).toBeInTheDocument()
-    expect(calendarNew.getByText('관찰')).toBeInTheDocument()
-    expect(calendarNew.getByText('잘')).toBeInTheDocument()
+    expect(calendarNew.queryByText('미기록')).not.toBeInTheDocument()
+    expect(calendarNew.queryByText('관찰')).not.toBeInTheDocument()
+    expect(calendarNew.queryByText('잘')).not.toBeInTheDocument()
+    expect(calendarNewElement.querySelector('.month-day__category-reaction.is-watch')).toHaveTextContent('!')
+    expect(calendarNewElement.querySelector('.month-day__category-reaction.is-liked')).toHaveTextContent('♥')
     expect(calendarDay.querySelector('.month-day__result')).toHaveTextContent('먹은 양')
     expect(calendarDay.querySelector('.month-day__result')).toHaveTextContent('3개 · 65g')
-    expect(calendarDay.querySelector('.month-day__result')).toHaveTextContent('관찰')
-    expect(calendarDay.querySelector('.month-day__result')).toHaveTextContent('잘')
+    expect(calendarDay.querySelector('.month-day__reactions')).not.toBeInTheDocument()
     expect(calendarDay).toHaveAccessibleName(/반응 관찰 필요 1개, 잘 먹음 1개, 미기록 1개/)
 
     fireEvent.click(screen.getByRole('button', { name: '아기 날짜' }))

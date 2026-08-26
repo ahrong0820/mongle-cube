@@ -5,6 +5,7 @@ import { ConsumptionHistory } from './components/ConsumptionHistory'
 import { ConsumptionRecordFormSheet } from './components/ConsumptionRecordFormSheet'
 import { CubeCard } from './components/CubeCard'
 import { CubeFormSheet } from './components/CubeFormSheet'
+import { HomeTimeline } from './components/HomeTimeline'
 import { Icon } from './components/Icon'
 import { MealPlanFormSheet } from './components/MealPlanFormSheet'
 import { MealPlanner } from './components/MealPlanner'
@@ -441,6 +442,7 @@ export default function App() {
                   <Icon name={shared ? 'people' : 'device'} size={15} />
                   {connectionText}
                 </span>
+                <HomeTimeline dateKey={getSeoulDateKey(new Date())} profile={babyProfile} />
                 {!online && <span className="offline-chip">오프라인</span>}
               </div>
               <p id="inventory-summary-title">냉동실에 모두</p>
