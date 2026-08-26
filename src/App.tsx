@@ -640,6 +640,7 @@ export default function App() {
             onEditProfile={() => setBabyProfileOpen(true)}
             onEditRecord={setRecordEditing}
             profile={babyProfile}
+            recordIngredients={ingredientModel.recordIngredients}
             records={records}
           />
         ) : activeView === 'planner' ? (
@@ -689,7 +690,7 @@ export default function App() {
 
       <CubeFormSheet
         initial={editing}
-        initialIngredientNames={editing ? (ingredientModel.batchIngredients[editing.id] ?? []) .map((ingredient) => ingredient.name) : []}
+        initialIngredientNames={editing ? (ingredientModel.batchIngredients[editing.id] ?? []).map((ingredient) => ingredient.name) : []}
         ingredientSuggestions={ingredientSuggestions}
         onClose={closeCubeForm}
         onDelete={editing ? handleDelete : null}

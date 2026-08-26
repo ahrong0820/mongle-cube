@@ -8,6 +8,7 @@ import type {
   CubeCategory,
   CubeUnit,
   FoodReaction,
+  Ingredient,
 } from '../types'
 import { Icon } from './Icon'
 
@@ -15,6 +16,7 @@ export interface ConsumptionCalendarProps {
   batches: CubeBatch[]
   profile: BabyProfile
   records: ConsumptionRecord[]
+  recordIngredients?: Readonly<Record<string, Ingredient[]>>
   onEditRecord: (record: ConsumptionRecord) => void
   onEditProfile: () => void
 }
@@ -32,6 +34,7 @@ interface CalendarCategorySummary {
 }
 
 interface CalendarNewFoodSummary {
+  id: string
   name: string
   reaction: FoodReaction | null
 }
@@ -207,11 +210,20 @@ function getSpokenReactionSummary(
   return parts.length > 0 ? `반응 ${parts.join(', ')}` : '반응 미기록'
 }
 
+function getRecordIngredients(
+  record: ConsumptionRecord,
+  recordIngredients: Readonly<Record<string, Ingredient[]>> | undefined,
+): Ingredient[] {
+  if (recordIngredients !== undefined) return recordIngredients[record.id] ?? []
+  return [{ id: `legacy-cube-name:${record.cubeName}`, name: record.cubeName }]
+}
+
 function buildCalendarDaySummary(
   records: ConsumptionRecord[],
   categoryByBatchId: ReadonlyMap<string, CubeCategory>,
-  firstDateByCube: ReadonlyMap<string, string>,
+  firstDateByIngredient: ReadonlyMap<string, string>,
   dateKey: string,
+  recordIngredients: Readonly<Record<string, Ingredient[]>> | undefined,
 ): CalendarDaySummary {
   const categories = CATEGORY_ORDER.map((category) => ({
     category,
@@ -221,19 +233,29 @@ function buildCalendarDaySummary(
       ),
     ),
   })).filter(({ category, groups }) => category !== 'other' || groups.length > 0)
-  const newFoodNames = [...new Set(
-    sortRecords(records)
-      .reverse()
-      .filter((record) => firstDateByCube.get(record.cubeName) === dateKey)
-      .map((record) => record.cubeName),
-  )]
+
+  const newIngredients = new Map<string, Ingredient>()
+  for (const record of sortRecords(records).reverse()) {
+    for (const ingredient of getRecordIngredients(record, recordIngredients)) {
+      if (firstDateByIngredient.get(ingredient.id) === dateKey) {
+        newIngredients.set(ingredient.id, ingredient)
+      }
+    }
+  }
   const reactions = getDayReactions(records)
 
   return {
     categories,
-    newFoods: newFoodNames.map((name) => ({
-      name,
-      reaction: getStrongestReaction(records.filter((record) => record.cubeName === name)),
+    newFoods: [...newIngredients.values()].map((ingredient) => ({
+      id: ingredient.id,
+      name: ingredient.name,
+      reaction: getStrongestReaction(
+        records.filter((record) =>
+          getRecordIngredients(record, recordIngredients).some(
+            (recordIngredient) => recordIngredient.id === ingredient.id,
+          ),
+        ),
+      ),
     })),
     reactions,
   }
@@ -243,6 +265,7 @@ export function ConsumptionCalendar({
   batches,
   profile,
   records,
+  recordIngredients,
   onEditRecord,
   onEditProfile,
 }: ConsumptionCalendarProps) {
@@ -267,15 +290,17 @@ export function ConsumptionCalendar({
     () => new Map(batches.map((batch) => [batch.id, batch.category])),
     [batches],
   )
-  const firstDateByCube = useMemo(() => {
+  const firstDateByIngredient = useMemo(() => {
     const firstDates = new Map<string, string>()
     for (const record of activeRecords) {
       const dateKey = getSeoulDateKey(record.consumedAt)
-      const current = firstDates.get(record.cubeName)
-      if (!current || dateKey < current) firstDates.set(record.cubeName, dateKey)
+      for (const ingredient of getRecordIngredients(record, recordIngredients)) {
+        const current = firstDates.get(ingredient.id)
+        if (!current || dateKey < current) firstDates.set(ingredient.id, dateKey)
+      }
     }
     return firstDates
-  }, [activeRecords])
+  }, [activeRecords, recordIngredients])
   const calendarDays = useMemo(() => getMonthDays(visibleMonth), [visibleMonth])
   const selectedRecords = useMemo(
     () => sortRecords(recordsByDate.get(selectedDate) ?? []),
@@ -295,16 +320,26 @@ export function ConsumptionCalendar({
     [categoryByBatchId, selectedRecords],
   )
   const selectedNewFoods = useMemo(() => {
-    const names = [...new Set(
-      selectedRecords
-        .filter((record) => firstDateByCube.get(record.cubeName) === selectedDate)
-        .map((record) => record.cubeName),
-    )]
-    return names.map((name) => {
-      const foodRecords = selectedRecords.filter((record) => record.cubeName === name)
-      return { name, reaction: getStrongestReaction(foodRecords) }
-    })
-  }, [firstDateByCube, selectedDate, selectedRecords])
+    const newIngredients = new Map<string, Ingredient>()
+    for (const record of selectedRecords) {
+      for (const ingredient of getRecordIngredients(record, recordIngredients)) {
+        if (firstDateByIngredient.get(ingredient.id) === selectedDate) {
+          newIngredients.set(ingredient.id, ingredient)
+        }
+      }
+    }
+    return [...newIngredients.values()].map((ingredient) => ({
+      id: ingredient.id,
+      name: ingredient.name,
+      reaction: getStrongestReaction(
+        selectedRecords.filter((record) =>
+          getRecordIngredients(record, recordIngredients).some(
+            (recordIngredient) => recordIngredient.id === ingredient.id,
+          ),
+        ),
+      ),
+    }))
+  }, [firstDateByIngredient, recordIngredients, selectedDate, selectedRecords])
   const monthRecords = useMemo(
     () =>
       activeRecords.filter(
@@ -412,8 +447,9 @@ export function ConsumptionCalendar({
             const daySummary = buildCalendarDaySummary(
               dayRecords,
               categoryByBatchId,
-              firstDateByCube,
+              firstDateByIngredient,
               key,
+              recordIngredients,
             )
             const hasWatch = daySummary.reactions.some(([reaction]) => reaction === 'watch')
             const inMonth = key.slice(0, 7) === visibleMonth
@@ -470,10 +506,7 @@ export function ConsumptionCalendar({
                   <span className="month-day__sheet" aria-hidden="true">
                     <span className="month-day__categories">
                       {daySummary.categories.map(({ category, groups }) => (
-                        <span
-                          className={`month-day__category is-${category}`}
-                          key={category}
-                        >
+                        <span className={`month-day__category is-${category}`} key={category}>
                           <i>{CATEGORY_META[category].label}</i>
                           <span>
                             {groups.length === 0 ? (
@@ -509,10 +542,10 @@ export function ConsumptionCalendar({
                       <span className="month-day__new">
                         <strong>NEW</strong>
                         <span className="month-day__new-foods">
-                          {daySummary.newFoods.map(({ name, reaction }) => (
+                          {daySummary.newFoods.map(({ id, name, reaction }) => (
                             <span
                               className={reaction === 'watch' ? 'has-watch' : ''}
-                              key={name}
+                              key={id}
                               title={`${name} · ${reaction ? REACTION_META[reaction].label : '반응 미기록'}`}
                             >
                               <b>
@@ -562,13 +595,9 @@ export function ConsumptionCalendar({
 
         {selectedRecords.length === 0 ? (
           <div className="calendar-empty">
-            <span aria-hidden="true">
-              <Icon name="bowl" size={25} />
-            </span>
+            <span aria-hidden="true"><Icon name="bowl" size={25} /></span>
             <strong>
-              {activeRecords.length === 0
-                ? '아직 먹은 기록이 없어요'
-                : '이 날은 먹은 기록이 없어요'}
+              {activeRecords.length === 0 ? '아직 먹은 기록이 없어요' : '이 날은 먹은 기록이 없어요'}
             </strong>
             <p>
               {activeRecords.length === 0
@@ -590,15 +619,10 @@ export function ConsumptionCalendar({
               <dl className="daily-food-sheet__rows">
                 {selectedCategoryGroups.map(({ category, records: categoryRecords }) => (
                   <div className={`daily-food-sheet__row is-${category}`} key={category}>
-                    <dt>
-                      <i aria-hidden="true">{CATEGORY_META[category].symbol}</i>
-                      {CATEGORY_META[category].label}
-                    </dt>
+                    <dt><i aria-hidden="true">{CATEGORY_META[category].symbol}</i>{CATEGORY_META[category].label}</dt>
                     <dd>
                       {categoryRecords.length > 0
-                        ? groupCubes(categoryRecords)
-                            .map((group) => `${group.name} ${group.count}개`)
-                            .join(' · ')
+                        ? groupCubes(categoryRecords).map((group) => `${group.name} ${group.count}개`).join(' · ')
                         : '—'}
                     </dd>
                   </div>
@@ -608,12 +632,10 @@ export function ConsumptionCalendar({
                   <dd>
                     {selectedNewFoods.length > 0 ? (
                       <span className="daily-food-sheet__new-list">
-                        {selectedNewFoods.map(({ name, reaction }) => (
-                          <span className={reaction === 'watch' ? 'has-watch' : ''} key={name}>
+                        {selectedNewFoods.map(({ id, name, reaction }) => (
+                          <span className={reaction === 'watch' ? 'has-watch' : ''} key={id}>
                             <b>{name}</b>
-                            <small>
-                              {reaction ? REACTION_META[reaction].label : '반응 미기록'}
-                            </small>
+                            <small>{reaction ? REACTION_META[reaction].label : '반응 미기록'}</small>
                           </span>
                         ))}
                       </span>
@@ -627,9 +649,10 @@ export function ConsumptionCalendar({
               </dl>
 
               <p className="daily-food-sheet__notice">
-                NEW는 이 큐브를 처음 먹은 날이에요. 맛 반응과 몸의 이상 반응은 다를 수 있으니
-                걱정되는 모습은 ‘관찰 필요’와 메모로 남겨 주세요. 먹은 양은 기록한 큐브의
-                1개 용량을 기준으로 계산해요.
+                NEW는 아기가 실제 재료를 처음 먹은 날이에요. 혼합 큐브의 반응은 큐브 전체에
+                대한 반응으로 기록되며, 맛 반응과 몸의 이상 반응은 다를 수 있어요. 걱정되는
+                모습은 ‘관찰 필요’와 메모로 남겨 주세요. 먹은 양은 기록한 큐브의 1개 용량을
+                기준으로 계산해요.
               </p>
             </section>
 
@@ -650,30 +673,16 @@ export function ConsumptionCalendar({
                 return (
                   <li className={`calendar-record ${hasWatch ? 'has-watch' : ''}`} key={record.id}>
                     <div className="calendar-record__main">
-                      <time dateTime={record.consumedAt}>
-                        {formatHistoryTime(record.consumedAt)}
-                      </time>
-                      <div>
-                        <strong>{record.cubeName}</strong>
-                        <small>{formatUnit(record)}</small>
-                      </div>
-                      <span
-                        className={`calendar-record__reaction ${record.reaction ? `is-${record.reaction}` : 'is-empty'}`}
-                      >
+                      <time dateTime={record.consumedAt}>{formatHistoryTime(record.consumedAt)}</time>
+                      <div><strong>{record.cubeName}</strong><small>{formatUnit(record)}</small></div>
+                      <span className={`calendar-record__reaction ${record.reaction ? `is-${record.reaction}` : 'is-empty'}`}>
                         {reaction ? (
-                          <>
-                            <i aria-hidden="true">{reaction.symbol}</i>
-                            {reaction.label}
-                          </>
-                        ) : (
-                          '반응 미기록'
-                        )}
+                          <><i aria-hidden="true">{reaction.symbol}</i>{reaction.label}</>
+                        ) : '반응 미기록'}
                       </span>
                     </div>
 
-                    {record.reactionNote && (
-                      <p className="calendar-record__note">{record.reactionNote}</p>
-                    )}
+                    {record.reactionNote && <p className="calendar-record__note">{record.reactionNote}</p>}
 
                     <button
                       aria-label={`${record.cubeName} ${formatHistoryTime(record.consumedAt)} 먹은 기록 수정 또는 삭제`}

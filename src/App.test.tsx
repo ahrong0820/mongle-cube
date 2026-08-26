@@ -125,7 +125,7 @@ describe('몽글큐브 핵심 흐름', () => {
       '쌀죽 1개',
     )
     expect(within(overview).getByText('NEW').closest('.daily-food-sheet__row')).toHaveTextContent(
-      '쌀죽',
+      '쌀',
     )
     expect(
       screen.queryByRole('button', { name: /생일과 이유식 시작일을 설정할까요/ }),
