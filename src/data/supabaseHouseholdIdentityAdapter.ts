@@ -29,6 +29,7 @@ export function attachSupabaseHouseholdIdentitySupport(
   if (repository.mode !== 'shared') return repository
 
   const { client, householdId } = repository as unknown as SupabaseRepositoryInternals
+  const updateBabyProfile = repository.updateBabyProfile.bind(repository)
 
   repository.getBabyProfile = async () => {
     const { data, error } = await client
@@ -39,6 +40,11 @@ export function attachSupabaseHouseholdIdentitySupport(
 
     if (error) throw error
     return mapHouseholdProfile(data as HouseholdProfileRow)
+  }
+
+  repository.updateBabyProfile = async (profile) => {
+    await updateBabyProfile(profile)
+    return repository.getBabyProfile()
   }
 
   return repository
