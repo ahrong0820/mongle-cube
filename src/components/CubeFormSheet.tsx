@@ -16,6 +16,8 @@ interface CubeFormSheetProps {
   prefillRecipe: CubeRecipe | null
   recipes: CubeRecipe[]
   ingredientSuggestions: string[]
+  deleteBlockedReason?: string | null
+  quantityLockedReason?: string | null
   onClose: () => void
   onSave: (draft: CubeDraft) => Promise<void>
   onDelete: (() => Promise<void>) | null
@@ -76,6 +78,8 @@ export function CubeFormSheet({
   prefillRecipe,
   recipes,
   ingredientSuggestions,
+  deleteBlockedReason = null,
+  quantityLockedReason = null,
   onClose,
   onSave,
   onDelete,
@@ -150,6 +154,7 @@ export function CubeFormSheet({
   }
 
   const changeQuantity = (delta: number) => {
+    if (quantityLockedReason) return
     const current = Number.parseInt(form.quantity, 10)
     const next = Math.min(999, Math.max(0, (Number.isNaN(current) ? 0 : current) + delta))
     setField('quantity', String(next))
@@ -181,6 +186,9 @@ export function CubeFormSheet({
     }
     if (!Number.isInteger(quantity) || quantity < 0 || quantity > 999) {
       return setError('만든 개수는 0~999 사이의 정수로 입력해 주세요.')
+    }
+    if (quantityLockedReason && initial && quantity !== initial.quantity) {
+      return setError(quantityLockedReason)
     }
     if (unitAmount !== null && (!Number.isFinite(unitAmount) || unitAmount <= 0)) {
       return setError('1개 용량은 0보다 큰 숫자로 입력해 주세요.')
@@ -221,7 +229,7 @@ export function CubeFormSheet({
   }
 
   const handleDelete = async () => {
-    if (!onDelete) return
+    if (!onDelete || deleteBlockedReason) return
     setSaving(true)
     setError('')
     try {
@@ -254,7 +262,13 @@ export function CubeFormSheet({
         <div className="sheet__handle" aria-hidden="true" />
         <header className="sheet__header">
           <div>
-            <span className="eyebrow">{initial ? '큐브 정보 다듬기' : prefillRecipe ? '전에 만든 큐브 다시 만들기' : '냉동실에 새로 담기'}</span>
+            <span className="eyebrow">
+              {initial
+                ? '큐브 정보 다듬기'
+                : prefillRecipe
+                  ? '전에 만든 큐브 다시 만들기'
+                  : '냉동실에 새로 담기'}
+            </span>
             <h2 id="cube-form-title">{initial ? '큐브 수정' : '큐브 추가'}</h2>
           </div>
           <button
@@ -312,9 +326,7 @@ export function CubeFormSheet({
           </div>
 
           <fieldset className="field meal-slot-field cube-category-field">
-            <legend>
-              재료 역할 <b>필수</b>
-            </legend>
+            <legend>재료 역할 <b>필수</b></legend>
             <div className="meal-slot-options cube-category-options">
               {CATEGORY_OPTIONS.map((option) => (
                 <button
@@ -333,11 +345,17 @@ export function CubeFormSheet({
           <div className="field">
             <span>현재 개수 <b>필수</b></span>
             <div className="form-stepper">
-              <button aria-label="개수 1개 줄이기" onClick={() => changeQuantity(-1)} type="button">
+              <button
+                aria-label="개수 1개 줄이기"
+                disabled={Boolean(quantityLockedReason)}
+                onClick={() => changeQuantity(-1)}
+                type="button"
+              >
                 <Icon name="minus" />
               </button>
               <input
                 aria-label="현재 개수"
+                disabled={Boolean(quantityLockedReason)}
                 inputMode="numeric"
                 max="999"
                 min="0"
@@ -345,10 +363,21 @@ export function CubeFormSheet({
                 type="number"
                 value={form.quantity}
               />
-              <button aria-label="개수 1개 늘리기" onClick={() => changeQuantity(1)} type="button">
+              <button
+                aria-label="개수 1개 늘리기"
+                disabled={Boolean(quantityLockedReason)}
+                onClick={() => changeQuantity(1)}
+                type="button"
+              >
                 <Icon name="plus" />
               </button>
             </div>
+            {quantityLockedReason && (
+              <p className="quantity-policy-note">
+                <Icon name="trash" size={15} />
+                {quantityLockedReason}
+              </p>
+            )}
           </div>
 
           <label className="field">
@@ -371,7 +400,10 @@ export function CubeFormSheet({
             </div>
           </div>
 
-          <details className="optional-fields" open={Boolean(initial?.unitAmount || initial?.memo || prefillRecipe?.defaultUnitAmount)}>
+          <details
+            className="optional-fields"
+            open={Boolean(initial?.unitAmount || initial?.memo || prefillRecipe?.defaultUnitAmount)}
+          >
             <summary>
               선택 정보
               <Icon name="chevron" size={18} />
@@ -394,9 +426,9 @@ export function CubeFormSheet({
                       <button
                         aria-pressed={form.unit === unit}
                         className={form.unit === unit ? 'is-selected' : ''}
+                        key={unit}
                         onClick={() => setField('unit', unit)}
                         type="button"
-                        key={unit}
                       >
                         {unit}
                       </button>
@@ -419,9 +451,16 @@ export function CubeFormSheet({
             </div>
           </details>
 
+          {deleteBlockedReason && initial && (
+            <p className="delete-policy-note">
+              <Icon name="trash" size={15} />
+              {deleteBlockedReason}
+            </p>
+          )}
+
           {error && <p className="form-error" role="alert">{error}</p>}
 
-          {initial && confirmingDelete && (
+          {initial && !deleteBlockedReason && confirmingDelete && (
             <div className="delete-confirm" role="alert">
               <p>이 큐브 등록을 삭제할까요? 잘못 등록한 큐브를 없앨 때만 사용해 주세요.</p>
               <div>
@@ -433,7 +472,7 @@ export function CubeFormSheet({
         </div>
 
         <footer className="sheet__footer">
-          {initial && !confirmingDelete && (
+          {initial && !deleteBlockedReason && !confirmingDelete && (
             <button
               aria-label={`${initial.name} 등록 삭제하기`}
               className="delete-button"
