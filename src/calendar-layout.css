@@ -1,0 +1,12 @@
+/* Keep the calendar date header tall enough when baby D+ information is shown. */
+.month-day {
+  grid-template-rows: max-content minmax(0, 1fr);
+}
+
+.month-day__date-line {
+  min-height: 25px;
+}
+
+.month-day__date-line > small {
+  line-height: 1.2;
+}
