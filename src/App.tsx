@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BabyProfileSheet } from './components/BabyProfileSheet'
+import { ClosedCubeGroups } from './components/ClosedCubeGroups'
 import { ConsumptionCalendar } from './components/ConsumptionCalendar'
 import { ConsumptionHistory } from './components/ConsumptionHistory'
 import { ConsumptionRecordFormSheet } from './components/ConsumptionRecordFormSheet'
@@ -218,9 +219,34 @@ export default function App() {
   }, [batches, stockFilter])
 
   const activeDisposalByBatchId = useMemo(
-    () => new Map(disposals.filter((disposal) => !disposal.cancelledAt).map((disposal) => [disposal.batchId, disposal])),
+    () =>
+      new Map(
+        disposals
+          .filter((disposal) => !disposal.cancelledAt)
+          .map((disposal) => [disposal.batchId, disposal]),
+      ),
     [disposals],
   )
+
+  const editingDisposal = editing ? activeDisposalByBatchId.get(editing.id) ?? null : null
+
+  const editingDeleteBlockedReason = useMemo(() => {
+    if (!editing) return null
+    if (activeDisposalByBatchId.has(editing.id)) {
+      return '폐기 기록이 있는 큐브예요. 폐기 기록을 취소한 뒤 등록 삭제할 수 있어요.'
+    }
+    if (records.some((record) => record.batchId === editing.id && !record.cancelledAt)) {
+      return '먹은 기록이 있는 큐브예요. 먹은 이력을 보존하기 위해 등록 삭제는 막혀 있어요. 남은 재고를 버리려면 폐기를 사용해 주세요.'
+    }
+    if (mealPlanItems.some((item) => item.batchId === editing.id)) {
+      return '식단에 연결된 큐브예요. 식단에서 먼저 빼야 등록 삭제할 수 있어요.'
+    }
+    return null
+  }, [activeDisposalByBatchId, editing, mealPlanItems, records])
+
+  const editingQuantityLockedReason = editingDisposal
+    ? `폐기된 수량은 직접 바꿀 수 없어요. 폐기 기록을 취소하면 ${editingDisposal.quantity}개가 복원돼요.`
+    : null
 
   const discardingPendingPlanCount = useMemo(
     () =>
@@ -256,7 +282,6 @@ export default function App() {
   const handleConsume = async (batch: CubeBatch) => {
     if (!repository || pendingIds.has(batch.id)) return
     setPendingIds((current) => new Set(current).add(batch.id))
-
     try {
       const result = await repository.consume(batch.id)
       replaceBatch(result.batch)
@@ -285,7 +310,6 @@ export default function App() {
       return
     }
     setPendingIds((current) => new Set(current).add(batch.id))
-
     try {
       replaceBatch(await repository.incrementQuantity(batch.id))
       showToast(`${batch.name} 1개 더했어요.`)
@@ -304,7 +328,6 @@ export default function App() {
   const handleDiscard = async (batch: CubeBatch) => {
     if (!repository?.discard) throw new Error('공유 냉동실에서 폐기 기능을 사용할 수 있어요.')
     if (pendingIds.has(batch.id)) throw new Error('이미 처리 중인 큐브예요.')
-
     setPendingIds((current) => new Set(current).add(batch.id))
     try {
       const result = await repository.discard(batch.id, batch.updatedAt)
@@ -334,7 +357,6 @@ export default function App() {
   const handleCancelDisposal = async (batch: CubeBatch, disposal: CubeDisposal) => {
     if (!repository?.cancelDisposal || pendingIds.has(batch.id)) return
     setPendingIds((current) => new Set(current).add(batch.id))
-
     try {
       const result = await repository.cancelDisposal(disposal.id, batch.updatedAt)
       replaceBatch(result.batch)
@@ -614,7 +636,11 @@ export default function App() {
                 <p className="next-up">새 큐브를 담아볼까요?</p>
               )}
             </div>
-            <img alt="" className="summary-card__mascot" src={`${import.meta.env.BASE_URL}assets/baby-bear.svg`} />
+            <img
+              alt=""
+              className="summary-card__mascot"
+              src={`${import.meta.env.BASE_URL}assets/baby-bear.svg`}
+            />
           </section>
         )}
 
@@ -675,14 +701,21 @@ export default function App() {
               )}
 
               {loading ? (
-                <div className="card-skeletons" aria-label="재고를 불러오는 중"><div /><div /></div>
+                <div className="card-skeletons" aria-label="재고를 불러오는 중">
+                  <div />
+                  <div />
+                </div>
               ) : batches.length === 0 ? (
                 <div className="empty-state">
-                  <img alt="빈 이유식 그릇을 든 아기 곰" src={`${import.meta.env.BASE_URL}assets/empty-cubes.svg`} />
+                  <img
+                    alt="빈 이유식 그릇을 든 아기 곰"
+                    src={`${import.meta.env.BASE_URL}assets/empty-cubes.svg`}
+                  />
                   <h3>아직 담긴 큐브가 없어요</h3>
                   <p>방금 만든 이유식부터 가볍게 기록해 보세요.</p>
                   <button className="primary-button" onClick={openCreate} type="button">
-                    <Icon name="plus" />첫 큐브 등록
+                    <Icon name="plus" />
+                    첫 큐브 등록
                   </button>
                 </div>
               ) : visibleBatches.length === 0 ? (
@@ -691,6 +724,18 @@ export default function App() {
                   <strong>이 조건의 큐브는 없어요</strong>
                   <button onClick={() => setStockFilter('all')} type="button">전체 보기</button>
                 </div>
+              ) : stockFilter === 'empty' ? (
+                <ClosedCubeGroups
+                  batches={visibleBatches}
+                  disposals={disposals}
+                  onCancelDisposal={handleCancelDisposal}
+                  onConsume={handleConsume}
+                  onEdit={openEdit}
+                  onIncrement={handleIncrement}
+                  onRemake={openRemake}
+                  pendingIds={pendingIds}
+                  recipes={ingredientModel.recipes}
+                />
               ) : (
                 <div className="cube-list">
                   {visibleBatches.map((batch) => (
@@ -712,8 +757,15 @@ export default function App() {
             </section>
 
             <details className="safety-note">
-              <summary><Icon name="snowflake" size={18} />보관 기준 보기<Icon name="chevron" size={17} /></summary>
-              <p>이 가정은 냉동 14일을 관리 기준으로 사용합니다. 국내 공식 참고는 냉동 7일이며, 보관 온도나 음식 상태가 의심되면 날짜와 관계없이 폐기해 주세요.</p>
+              <summary>
+                <Icon name="snowflake" size={18} />
+                보관 기준 보기
+                <Icon name="chevron" size={17} />
+              </summary>
+              <p>
+                이 가정은 냉동 14일을 관리 기준으로 사용합니다. 국내 공식 참고는 냉동 7일이며,
+                보관 온도나 음식 상태가 의심되면 날짜와 관계없이 폐기해 주세요.
+              </p>
             </details>
           </>
         ) : activeView === 'calendar' ? (
@@ -748,37 +800,72 @@ export default function App() {
       </main>
 
       <footer className="app-footer">
-        <span>오늘도 몽글몽글 잘 먹자</span><span aria-hidden="true">·</span><span>가정용 큐브 기록</span>
+        <span>오늘도 몽글몽글 잘 먹자</span>
+        <span aria-hidden="true">·</span>
+        <span>가정용 큐브 기록</span>
       </footer>
 
       <nav aria-label="주요 화면" className="bottom-nav">
-        <button aria-current={activeView === 'inventory' ? 'page' : undefined} onClick={() => setActiveView('inventory')} type="button">
-          <Icon name="snowflake" size={21} /><span>냉동실</span>
+        <button
+          aria-current={activeView === 'inventory' ? 'page' : undefined}
+          onClick={() => setActiveView('inventory')}
+          type="button"
+        >
+          <Icon name="snowflake" size={21} />
+          <span>냉동실</span>
         </button>
-        <button aria-label="달력" aria-current={activeView === 'calendar' ? 'page' : undefined} onClick={() => setActiveView('calendar')} type="button">
-          <Icon name="calendar" size={21} /><span>달력</span>
+        <button
+          aria-label="달력"
+          aria-current={activeView === 'calendar' ? 'page' : undefined}
+          onClick={() => setActiveView('calendar')}
+          type="button"
+        >
+          <Icon name="calendar" size={21} />
+          <span>달력</span>
         </button>
-        <button aria-label="식단" aria-current={activeView === 'planner' ? 'page' : undefined} onClick={() => setActiveView('planner')} type="button">
-          <Icon name="calendar" size={21} /><span>식단</span>
+        <button
+          aria-label="식단"
+          aria-current={activeView === 'planner' ? 'page' : undefined}
+          onClick={() => setActiveView('planner')}
+          type="button"
+        >
+          <Icon name="calendar" size={21} />
+          <span>식단</span>
           {mealPlanItems.filter((item) => !item.consumptionRecordId).length > 0 && (
-            <b aria-hidden="true">{mealPlanItems.filter((item) => !item.consumptionRecordId).length}</b>
+            <b aria-hidden="true">
+              {mealPlanItems.filter((item) => !item.consumptionRecordId).length}
+            </b>
           )}
         </button>
-        <button aria-label="먹은 기록" aria-current={activeView === 'history' ? 'page' : undefined} onClick={() => setActiveView('history')} type="button">
-          <Icon name="book" size={21} /><span>먹은 기록</span>
+        <button
+          aria-label="먹은 기록"
+          aria-current={activeView === 'history' ? 'page' : undefined}
+          onClick={() => setActiveView('history')}
+          type="button"
+        >
+          <Icon name="book" size={21} />
+          <span>먹은 기록</span>
           {records.length > 0 && <b aria-hidden="true">{records.length}</b>}
         </button>
       </nav>
 
       <CubeFormSheet
+        deleteBlockedReason={editingDeleteBlockedReason}
         initial={editing}
-        initialIngredientNames={editing ? (ingredientModel.batchIngredients[editing.id] ?? []).map((ingredient) => ingredient.name) : []}
+        initialIngredientNames={
+          editing
+            ? (ingredientModel.batchIngredients[editing.id] ?? []).map(
+                (ingredient) => ingredient.name,
+              )
+            : []
+        }
         ingredientSuggestions={ingredientSuggestions}
         onClose={closeCubeForm}
-        onDelete={editing ? handleDelete : null}
+        onDelete={editing && !editingDeleteBlockedReason ? handleDelete : null}
         onSave={handleSave}
         open={formOpen}
         prefillRecipe={prefillRecipe}
+        quantityLockedReason={editingQuantityLockedReason}
         recipes={ingredientModel.recipes}
       />
 
