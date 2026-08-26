@@ -1,0 +1,95 @@
+.reaction-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 1px 0 9px 55px;
+  gap: 7px 8px;
+}
+
+.reaction-row .reaction-row__reaction,
+.reaction-row .reaction-row__edit {
+  min-width: 0;
+  min-height: 36px;
+  align-items: center;
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.reaction-row .reaction-row__reaction {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  justify-self: start;
+  padding: 0 10px;
+  border: 1px solid #dce7e0;
+  color: var(--sage-dark);
+  background: #f4faf6;
+  gap: 5px;
+}
+
+.reaction-row .reaction-row__reaction.is-liked {
+  color: #873d35;
+  border-color: #f2d0cb;
+  background: #fff0ed;
+}
+
+.reaction-row .reaction-row__reaction.is-okay {
+  color: #386b57;
+  border-color: #dce7e0;
+  background: var(--sage-soft);
+}
+
+.reaction-row .reaction-row__reaction.is-disliked {
+  color: #65506b;
+  border-color: #ddd2e0;
+  background: #f3eef5;
+}
+
+.reaction-row .reaction-row__reaction.is-watch {
+  color: #744d0a;
+  border-color: #efd796;
+  background: var(--warning-soft);
+}
+
+.reaction-row .reaction-row__reaction.is-empty {
+  color: var(--muted);
+  border-color: #e4ded6;
+  background: #f7f4ef;
+}
+
+.reaction-row .reaction-row__edit {
+  display: inline-flex;
+  justify-self: end;
+  justify-content: center;
+  padding: 0 8px;
+  border: 0;
+  color: var(--sage-dark);
+  background: var(--sage-soft);
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.reaction-row p {
+  grid-column: 1 / -1;
+  padding-top: 0;
+  margin: 0 0 1px;
+}
+
+@media (max-width: 390px) {
+  .reaction-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-left: 49px;
+  }
+
+  .reaction-row .reaction-row__reaction {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .reaction-row .reaction-row__edit {
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+}
