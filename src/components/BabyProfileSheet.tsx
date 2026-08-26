@@ -101,7 +101,7 @@ export function BabyProfileSheet({
         <div className="sheet__handle" aria-hidden="true" />
         <header className="sheet__header">
           <div>
-            <span className="eyebrow">달력에 한 번만 설정</span>
+            <span className="eyebrow">메인과 달력에 한 번만 설정</span>
             <h2 id="baby-profile-title">아기 날짜 정보</h2>
           </div>
           <button
@@ -117,8 +117,7 @@ export function BabyProfileSheet({
 
         <div className="sheet__content">
           <p className="baby-profile-sheet__intro">
-            생일과 이유식 시작일을 저장하면 달력에서 아기 일수(D+)와 이유식 며칠째인지
-            자동으로 계산해요.
+            생일은 메인 화면의 D+로, 이유식 시작일은 메인과 달력의 이유식 일차로 자동 계산해요.
           </p>
 
           <label className="field">
@@ -134,7 +133,7 @@ export function BabyProfileSheet({
                 value={birthDate}
               />
             </div>
-            <small>선택한 날짜마다 D+ 일수를 보여줘요.</small>
+            <small>메인 화면에서 D+ 일수를 보여줘요.</small>
           </label>
 
           <label className="field">
@@ -149,7 +148,7 @@ export function BabyProfileSheet({
                 value={weaningStartedOn}
               />
             </div>
-            <small>시작한 날을 1일차로 계산해요.</small>
+            <small>메인과 달력에서 시작한 날을 1일차로 계산해요.</small>
           </label>
 
           {(birthDate || weaningStartedOn) && (
