@@ -38,8 +38,8 @@ export function Icon({ name, size = 20, ...props }: IconProps) {
     ),
     snowflake: (
       <>
-        <path d="M12 2v20M4.5 6.3l15 11.4M4.5 17.7l15-11.4" />
-        <path d="m9 4 3 3 3-3M9 20l3-3 3 3M5 9l4 .2-.8-4M19 15l-4-.2.8 4M5 15l4-.2-.8 4M19 9l-4 .2.8-4" />
+        <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z" />
+        <path d="m4 7.5 8 4.5 8-4.5M12 12v9" />
       </>
     ),
     device: (
