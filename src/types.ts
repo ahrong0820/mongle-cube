@@ -3,6 +3,27 @@ export type CubeCategory = 'base' | 'topping' | 'snack' | 'other'
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 export type FoodReaction = 'liked' | 'okay' | 'disliked' | 'watch'
 
+export interface Ingredient {
+  id: string
+  name: string
+}
+
+export interface CubeRecipe {
+  id: string
+  householdId: string
+  name: string
+  category: CubeCategory
+  defaultUnitAmount: number | null
+  defaultUnit: CubeUnit | null
+  ingredients: Ingredient[]
+}
+
+export interface IngredientModel {
+  recipes: CubeRecipe[]
+  batchIngredients: Record<string, Ingredient[]>
+  recordIngredients: Record<string, Ingredient[]>
+}
+
 export interface CubeBatch {
   id: string
   householdId: string
@@ -16,6 +37,8 @@ export interface CubeBatch {
   memo: string
   createdAt: string
   updatedAt: string
+  recipeId?: string | null
+  ingredientNames?: string[]
 }
 
 export interface CubeDraft {
@@ -26,6 +49,8 @@ export interface CubeDraft {
   unitAmount: number | null
   unit: CubeUnit | null
   memo: string
+  recipeId?: string | null
+  ingredientNames?: string[]
 }
 
 export interface BabyProfile {
@@ -46,6 +71,7 @@ export interface ConsumptionRecord {
   planItemId: string | null
   reaction: FoodReaction | null
   reactionNote: string
+  ingredientNames?: string[]
 }
 
 export interface ConsumptionRecordUpdate {
