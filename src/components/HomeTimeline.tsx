@@ -14,10 +14,10 @@ export function HomeTimeline({ dateKey, profile }: HomeTimelineProps) {
 
   return (
     <>
-      {babyAge !== null && <span className="home-timeline-chip">D+{babyAge}</span>}
       {weaningDay !== null && (
         <span className="home-timeline-chip">이유식 {weaningDay}일차</span>
       )}
+      {babyAge !== null && <span className="home-timeline-chip">D+{babyAge}일</span>}
     </>
   )
 }

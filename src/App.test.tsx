@@ -109,7 +109,7 @@ describe('몽글큐브 핵심 흐름', () => {
     expect(
       await screen.findByText('이유식 1일차', { selector: '.calendar-detail__timeline' }),
     ).toBeInTheDocument()
-    expect(screen.queryByText('D+1')).not.toBeInTheDocument()
+    expect(screen.queryByText('D+1일')).not.toBeInTheDocument()
     const overview = screen.getByRole('region', { name: '먹은 내용 한눈에 보기' })
     expect(within(overview).getByText('베이스').closest('.daily-food-sheet__row')).toHaveTextContent(
       '쌀죽 1개',
@@ -122,7 +122,7 @@ describe('몽글큐브 핵심 흐름', () => {
     ).not.toBeInTheDocument()
 
     await user.click(within(navigation).getByRole('button', { name: '냉동실' }))
-    expect(await screen.findByText('D+1', { selector: '.home-timeline-chip' })).toBeInTheDocument()
+    expect(await screen.findByText('D+1일', { selector: '.home-timeline-chip' })).toBeInTheDocument()
     expect(screen.getByText('이유식 1일차', { selector: '.home-timeline-chip' })).toBeInTheDocument()
 
     await user.click(within(navigation).getByRole('button', { name: '먹은 기록' }))

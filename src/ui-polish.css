@@ -1,0 +1,134 @@
+/* Keep sync state, weaning day, and baby D+ together in one compact row. */
+.summary-card .connection-row {
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.summary-card .connection-chip {
+  min-height: 23px;
+  padding: 3px 6px;
+  font-size: 9.5px;
+  line-height: 1;
+  white-space: nowrap;
+  gap: 4px;
+}
+
+.summary-card .connection-chip > svg {
+  width: 13px;
+  height: 13px;
+}
+
+.summary-card .home-timeline-chip {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  color: rgba(255, 255, 255, 0.94);
+  background: transparent;
+  font-size: 9.5px;
+  font-weight: 760;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Visual navigation order: freezer, history, calendar, meal plan. */
+.bottom-nav > button:nth-child(1) {
+  order: 1;
+}
+
+.bottom-nav > button:nth-child(4) {
+  order: 2;
+}
+
+.bottom-nav > button:nth-child(2) {
+  order: 3;
+}
+
+.bottom-nav > button:nth-child(3) {
+  order: 4;
+}
+
+/* Replace the snowflake in the freezer tab with a simple freezer appliance mark. */
+.bottom-nav > button:nth-child(1) > svg {
+  display: none;
+}
+
+.bottom-nav > button:nth-child(1)::before {
+  width: 18px;
+  height: 21px;
+  flex: 0 0 auto;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  background:
+    linear-gradient(currentColor, currentColor) 0 7px / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) 4px 3px / 2px 3px no-repeat,
+    linear-gradient(currentColor, currentColor) 4px 11px / 2px 5px no-repeat;
+  box-sizing: border-box;
+  content: "";
+}
+
+/* The storage-guide disclosure is intentionally removed from the freezer UI. */
+.safety-note {
+  display: none;
+}
+
+/* Center calendar reaction badges optically against 10px menu labels. */
+.month-day__category-reaction {
+  position: static;
+  display: inline-flex;
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0 0 0 2px;
+  font-size: 0;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.month-day__category-reaction::before {
+  display: block;
+  width: 7px;
+  height: 7px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 7px 7px;
+  content: "";
+}
+
+.month-day__category-reaction.is-liked::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M6 10.5 1.9 6.4C-.2 4.3 1.1 1.3 3.7 1.3c1 0 1.9.5 2.3 1.3.4-.8 1.3-1.3 2.3-1.3 2.6 0 3.9 3 1.8 5.1Z'/%3E%3C/svg%3E");
+}
+
+.month-day__category-reaction.is-okay::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Ccircle cx='6' cy='6' r='2.35' fill='%23fff'/%3E%3C/svg%3E");
+}
+
+.month-day__category-reaction.is-disliked::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 6h6' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.month-day__category-reaction.is-watch::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 2.5v4' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='6' cy='9' r='1' fill='%23fff'/%3E%3C/svg%3E");
+}
+
+.month-day__category b,
+.month-day__new-foods b {
+  line-height: 1.15;
+}
+
+@media (max-width: 390px) {
+  .summary-card .connection-row {
+    gap: 3px;
+  }
+
+  .summary-card .connection-chip {
+    padding-inline: 5px;
+    font-size: 9px;
+  }
+
+  .summary-card .home-timeline-chip {
+    font-size: 8.5px;
+  }
+}
