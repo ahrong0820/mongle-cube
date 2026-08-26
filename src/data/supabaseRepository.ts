@@ -9,6 +9,8 @@ import type {
   CubeDraft,
   CubeUnit,
   FoodReaction,
+  Ingredient,
+  IngredientModel,
   MealPlanDraft,
   MealPlanItem,
 } from '../types'
@@ -22,6 +24,7 @@ import {
 interface CubeRow {
   id: string
   household_id: string
+  recipe_id: string | null
   name: string
   category: CubeCategory
   prepared_at: string
@@ -33,6 +36,37 @@ interface CubeRow {
   created_at: string
   updated_at: string
   deleted_at: string | null
+}
+
+interface IngredientRow {
+  id: string
+  name: string
+}
+
+interface RecipeRow {
+  id: string
+  household_id: string
+  name: string
+  category: CubeCategory
+  default_unit_amount: number | null
+  default_unit: CubeUnit | null
+}
+
+interface IngredientLinkRow {
+  ingredient_id: string
+  sort_order?: number
+}
+
+interface RecipeIngredientRow extends IngredientLinkRow {
+  recipe_id: string
+}
+
+interface BatchIngredientRow extends IngredientLinkRow {
+  batch_id: string
+}
+
+interface RecordIngredientRow extends IngredientLinkRow {
+  record_id: string
 }
 
 interface BabyProfileRow {
@@ -84,6 +118,7 @@ function mapRow(row: CubeRow): CubeBatch {
     memo: row.memo ?? '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    recipeId: row.recipe_id,
   }
 }
 
@@ -130,6 +165,36 @@ function toRowDraft(draft: CubeDraft) {
     unit: draft.unit,
     memo: draft.memo || null,
   }
+}
+
+function normalizeIngredientNames(names: string[] | undefined) {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const rawName of names ?? []) {
+    const name = rawName.trim()
+    if (!name) continue
+    const key = name.toLocaleLowerCase('ko-KR')
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push(name)
+  }
+  return result
+}
+
+function groupIngredientLinks<T extends IngredientLinkRow>(
+  rows: T[],
+  getKey: (row: T) => string,
+  ingredientsById: ReadonlyMap<string, Ingredient>,
+) {
+  const result: Record<string, Ingredient[]> = {}
+  const sorted = [...rows].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+  for (const row of sorted) {
+    const ingredient = ingredientsById.get(row.ingredient_id)
+    if (!ingredient) continue
+    const key = getKey(row)
+    result[key] = [...(result[key] ?? []), ingredient]
+  }
+  return result
 }
 
 function mapBabyProfileRow(row: BabyProfileRow): BabyProfile {
@@ -205,7 +270,9 @@ function toFriendlyWriteError(error: unknown, fallback: string) {
       ? String(error.message)
       : ''
 
-  if (code === 'PT409' || code === 'PT404') return new Error(message || fallback)
+  if (['PT409', 'PT404', '22023', '42501'].includes(code)) {
+    return new Error(message || fallback)
+  }
   return new Error(fallback)
 }
 
@@ -254,6 +321,89 @@ export class SupabaseCubeRepository implements CubeRepository {
     return (data as MealPlanRow[]).map(mapMealPlanRow)
   }
 
+  async getIngredientModel(): Promise<IngredientModel> {
+    const [ingredientResult, recipeResult, recipeLinkResult, batchLinkResult, recordLinkResult] =
+      await Promise.all([
+        this.client
+          .from('ingredients')
+          .select('id, name')
+          .eq('household_id', this.householdId)
+          .is('archived_at', null),
+        this.client
+          .from('cube_recipes')
+          .select('id, household_id, name, category, default_unit_amount, default_unit')
+          .eq('household_id', this.householdId)
+          .is('archived_at', null)
+          .order('name', { ascending: true }),
+        this.client
+          .from('cube_recipe_ingredients')
+          .select('recipe_id, ingredient_id, sort_order')
+          .eq('household_id', this.householdId),
+        this.client
+          .from('cube_batch_ingredients')
+          .select('batch_id, ingredient_id, sort_order')
+          .eq('household_id', this.householdId),
+        this.client
+          .from('consumption_record_ingredients')
+          .select('record_id, ingredient_id')
+          .eq('household_id', this.householdId),
+      ])
+
+    for (const result of [
+      ingredientResult,
+      recipeResult,
+      recipeLinkResult,
+      batchLinkResult,
+      recordLinkResult,
+    ]) {
+      if (result.error) throw result.error
+    }
+
+    const ingredients = (ingredientResult.data ?? []) as IngredientRow[]
+    const ingredientsById = new Map<string, Ingredient>(
+      ingredients.map((ingredient) => [ingredient.id, { id: ingredient.id, name: ingredient.name }]),
+    )
+    const recipeIngredients = groupIngredientLinks(
+      (recipeLinkResult.data ?? []) as RecipeIngredientRow[],
+      (row) => row.recipe_id,
+      ingredientsById,
+    )
+    const batchIngredients = groupIngredientLinks(
+      (batchLinkResult.data ?? []) as BatchIngredientRow[],
+      (row) => row.batch_id,
+      ingredientsById,
+    )
+    const recordIngredients = groupIngredientLinks(
+      (recordLinkResult.data ?? []) as RecordIngredientRow[],
+      (row) => row.record_id,
+      ingredientsById,
+    )
+
+    return {
+      recipes: ((recipeResult.data ?? []) as RecipeRow[]).map((recipe) => ({
+        id: recipe.id,
+        householdId: recipe.household_id,
+        name: recipe.name,
+        category: recipe.category,
+        defaultUnitAmount: recipe.default_unit_amount,
+        defaultUnit: recipe.default_unit,
+        ingredients: recipeIngredients[recipe.id] ?? [],
+      })),
+      batchIngredients,
+      recordIngredients,
+    }
+  }
+
+  async configureLegacyRecipe(recipeId: string, ingredientNames: string[]) {
+    const names = normalizeIngredientNames(ingredientNames)
+    if (names.length === 0) throw new Error('들어간 재료를 한 개 이상 입력해 주세요.')
+    const { error } = await this.client.rpc('configure_legacy_recipe', {
+      p_recipe_id: recipeId,
+      p_ingredients: names,
+    })
+    if (error) throw toFriendlyWriteError(error, '기존 큐브의 재료를 저장하지 못했어요.')
+  }
+
   async getBabyProfile() {
     const { data, error } = await this.client
       .from('households')
@@ -283,6 +433,25 @@ export class SupabaseCubeRepository implements CubeRepository {
   }
 
   async create(draft: CubeDraft) {
+    const ingredientNames = normalizeIngredientNames(draft.ingredientNames)
+    if (ingredientNames.length > 0) {
+      const { data, error } = await this.client.rpc('create_cube_batch_with_ingredients', {
+        p_recipe_id: draft.recipeId ?? null,
+        p_name: draft.name,
+        p_category: draft.category,
+        p_prepared_at: draft.preparedAt,
+        p_quantity: draft.quantity,
+        p_unit_amount: draft.unitAmount,
+        p_unit: draft.unit,
+        p_memo: draft.memo || null,
+        p_ingredients: ingredientNames,
+      })
+      if (error) throw toFriendlyWriteError(error, '큐브를 저장하지 못했어요.')
+      const result = data as { batch?: CubeRow } | null
+      if (!result?.batch) throw new Error('저장한 큐브를 확인하지 못했어요.')
+      return mapRow(result.batch)
+    }
+
     const { data, error } = await this.client
       .from('cube_batches')
       .insert({ household_id: this.householdId, ...toRowDraft(draft) })
@@ -294,6 +463,27 @@ export class SupabaseCubeRepository implements CubeRepository {
   }
 
   async update(id: string, draft: CubeDraft, expectedUpdatedAt: string) {
+    const ingredientNames = normalizeIngredientNames(draft.ingredientNames)
+    if (ingredientNames.length > 0) {
+      const { data, error } = await this.client.rpc('update_cube_batch_with_ingredients', {
+        p_batch_id: id,
+        p_expected_updated_at: expectedUpdatedAt,
+        p_recipe_id: draft.recipeId ?? null,
+        p_name: draft.name,
+        p_category: draft.category,
+        p_prepared_at: draft.preparedAt,
+        p_quantity: draft.quantity,
+        p_unit_amount: draft.unitAmount,
+        p_unit: draft.unit,
+        p_memo: draft.memo || null,
+        p_ingredients: ingredientNames,
+      })
+      if (error) throw toFriendlyWriteError(error, '큐브 정보를 수정하지 못했어요.')
+      const result = data as { batch?: CubeRow } | null
+      if (!result?.batch) throw new Error('수정한 큐브를 확인하지 못했어요.')
+      return mapRow(result.batch)
+    }
+
     const { data, error } = await this.client.rpc('update_cube_batch', {
       p_batch_id: id,
       p_expected_updated_at: expectedUpdatedAt,
@@ -450,38 +640,31 @@ export class SupabaseCubeRepository implements CubeRepository {
   subscribe(onChange: () => void, onStatus?: (status: SyncStatus) => void) {
     let active = true
     onStatus?.('connecting')
-    const channel = this.client
-      .channel(`cube-batches-${this.householdId}`)
-      .on(
+    let channel = this.client.channel(`cube-batches-${this.householdId}`)
+
+    for (const table of [
+      'cube_batches',
+      'consumption_records',
+      'meal_plan_items',
+      'ingredients',
+      'cube_recipes',
+      'cube_recipe_ingredients',
+      'cube_batch_ingredients',
+      'consumption_record_ingredients',
+    ]) {
+      channel = channel.on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'cube_batches',
+          table,
           filter: `household_id=eq.${this.householdId}`,
         },
         () => onChange(),
       )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'consumption_records',
-          filter: `household_id=eq.${this.householdId}`,
-        },
-        () => onChange(),
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'meal_plan_items',
-          filter: `household_id=eq.${this.householdId}`,
-        },
-        () => onChange(),
-      )
+    }
+
+    channel = channel
       .on(
         'postgres_changes',
         {
