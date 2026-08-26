@@ -4,6 +4,7 @@ import { ConsumptionCalendar } from './components/ConsumptionCalendar'
 import { ConsumptionHistory } from './components/ConsumptionHistory'
 import { ConsumptionRecordFormSheet } from './components/ConsumptionRecordFormSheet'
 import { CubeCard } from './components/CubeCard'
+import { CubeDisposalSheet } from './components/CubeDisposalSheet'
 import { CubeFormSheet } from './components/CubeFormSheet'
 import { HomeTimeline } from './components/HomeTimeline'
 import { Icon } from './components/Icon'
@@ -32,6 +33,7 @@ import type {
   ConsumptionRecord,
   ConsumptionRecordUpdate,
   CubeBatch,
+  CubeDisposal,
   CubeDraft,
   CubeRecipe,
   IngredientModel,
@@ -61,6 +63,7 @@ export default function App() {
   const [batches, setBatches] = useState<CubeBatch[]>([])
   const [records, setRecords] = useState<ConsumptionRecord[]>([])
   const [mealPlanItems, setMealPlanItems] = useState<MealPlanItem[]>([])
+  const [disposals, setDisposals] = useState<CubeDisposal[]>([])
   const [ingredientModel, setIngredientModel] = useState<IngredientModel>(EMPTY_INGREDIENT_MODEL)
   const [babyProfile, setBabyProfile] = useState<BabyProfile>({
     birthDate: null,
@@ -72,6 +75,7 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('connecting')
   const [editing, setEditing] = useState<CubeBatch | null>(null)
   const [prefillRecipe, setPrefillRecipe] = useState<CubeRecipe | null>(null)
+  const [discarding, setDiscarding] = useState<CubeBatch | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [ingredientSetupOpen, setIngredientSetupOpen] = useState(false)
   const [mealPlanFormOpen, setMealPlanFormOpen] = useState(false)
@@ -126,17 +130,25 @@ export default function App() {
       if (!repository) return
       if (showLoading) setLoading(true)
       try {
-        const [nextBatches, nextRecords, nextMealPlanItems, nextBabyProfile, sharedIngredientModel] =
-          await Promise.all([
-            repository.list(),
-            repository.listConsumptionRecords(),
-            repository.listMealPlanItems(),
-            repository.getBabyProfile(),
-            repository.getIngredientModel?.() ?? Promise.resolve(null),
-          ])
+        const [
+          nextBatches,
+          nextRecords,
+          nextMealPlanItems,
+          nextDisposals,
+          nextBabyProfile,
+          sharedIngredientModel,
+        ] = await Promise.all([
+          repository.list(),
+          repository.listConsumptionRecords(),
+          repository.listMealPlanItems(),
+          repository.listDisposals?.() ?? Promise.resolve([]),
+          repository.getBabyProfile(),
+          repository.getIngredientModel?.() ?? Promise.resolve(null),
+        ])
         setBatches(sortCubeBatches(nextBatches))
         setRecords(nextRecords)
         setMealPlanItems(nextMealPlanItems)
+        setDisposals(nextDisposals)
         setBabyProfile(nextBabyProfile)
         setIngredientModel(
           sharedIngredientModel ?? deriveLocalIngredientModel(nextBatches, nextRecords),
@@ -205,6 +217,21 @@ export default function App() {
     return batches
   }, [batches, stockFilter])
 
+  const activeDisposalByBatchId = useMemo(
+    () => new Map(disposals.filter((disposal) => !disposal.cancelledAt).map((disposal) => [disposal.batchId, disposal])),
+    [disposals],
+  )
+
+  const discardingPendingPlanCount = useMemo(
+    () =>
+      discarding
+        ? mealPlanItems.filter(
+            (item) => item.batchId === discarding.id && !item.consumptionRecordId,
+          ).length
+        : 0,
+    [discarding, mealPlanItems],
+  )
+
   const recipesNeedingSetup = useMemo(
     () => ingredientModel.recipes.filter((recipe) => recipe.ingredients.length === 0),
     [ingredientModel.recipes],
@@ -264,6 +291,58 @@ export default function App() {
       showToast(`${batch.name} 1개 더했어요.`)
     } catch (error) {
       showToast(error instanceof Error ? error.message : '수량을 더하지 못했어요.', 'error')
+      await loadData()
+    } finally {
+      setPendingIds((current) => {
+        const next = new Set(current)
+        next.delete(batch.id)
+        return next
+      })
+    }
+  }
+
+  const handleDiscard = async (batch: CubeBatch) => {
+    if (!repository?.discard) throw new Error('공유 냉동실에서 폐기 기능을 사용할 수 있어요.')
+    if (pendingIds.has(batch.id)) throw new Error('이미 처리 중인 큐브예요.')
+
+    setPendingIds((current) => new Set(current).add(batch.id))
+    try {
+      const result = await repository.discard(batch.id, batch.updatedAt)
+      replaceBatch(result.batch)
+      setDisposals((current) => [
+        result.disposal,
+        ...current.filter((disposal) => disposal.id !== result.disposal.id),
+      ])
+      showToast(
+        result.pendingPlanCount > 0
+          ? `${batch.name} ${result.disposal.quantity}개를 폐기했어요. 예정 식단 ${result.pendingPlanCount}건은 그대로 두었어요.`
+          : `${batch.name} ${result.disposal.quantity}개를 폐기했어요.`,
+      )
+      await loadData()
+    } catch (error) {
+      await loadData()
+      throw error
+    } finally {
+      setPendingIds((current) => {
+        const next = new Set(current)
+        next.delete(batch.id)
+        return next
+      })
+    }
+  }
+
+  const handleCancelDisposal = async (batch: CubeBatch, disposal: CubeDisposal) => {
+    if (!repository?.cancelDisposal || pendingIds.has(batch.id)) return
+    setPendingIds((current) => new Set(current).add(batch.id))
+
+    try {
+      const result = await repository.cancelDisposal(disposal.id, batch.updatedAt)
+      replaceBatch(result.batch)
+      setDisposals((current) => current.filter((item) => item.id !== disposal.id))
+      showToast(`${batch.name} 폐기 기록을 취소하고 ${disposal.quantity}개를 복원했어요.`)
+      await loadData()
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '폐기 기록을 취소하지 못했어요.', 'error')
       await loadData()
     } finally {
       setPendingIds((current) => {
@@ -355,7 +434,7 @@ export default function App() {
     showToast(
       result.stockRestored
         ? `${deleting.cubeName} 기록을 삭제하고 재고 1개를 복원했어요.`
-        : `${deleting.cubeName} 기록을 삭제했어요. 원래 큐브가 없거나 이미 처리되어 재고는 바뀌지 않았어요.`,
+        : `${deleting.cubeName} 기록을 삭제했어요. 원래 큐브가 없거나 이미 폐기·처리되어 재고는 바뀌지 않았어요.`,
     )
     await loadData()
   }
@@ -617,8 +696,11 @@ export default function App() {
                   {visibleBatches.map((batch) => (
                     <CubeCard
                       batch={batch}
+                      disposal={activeDisposalByBatchId.get(batch.id) ?? null}
                       key={batch.id}
+                      onCancelDisposal={repository?.cancelDisposal ? handleCancelDisposal : undefined}
                       onConsume={handleConsume}
+                      onDiscard={repository?.discard ? setDiscarding : undefined}
                       onEdit={openEdit}
                       onIncrement={handleIncrement}
                       onRemake={openRemake}
@@ -698,6 +780,14 @@ export default function App() {
         open={formOpen}
         prefillRecipe={prefillRecipe}
         recipes={ingredientModel.recipes}
+      />
+
+      <CubeDisposalSheet
+        batch={discarding}
+        onClose={() => setDiscarding(null)}
+        onConfirm={handleDiscard}
+        open={Boolean(discarding)}
+        pendingPlanCount={discardingPendingPlanCount}
       />
 
       <IngredientSetupSheet

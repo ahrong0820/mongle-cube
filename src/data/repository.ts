@@ -1,9 +1,12 @@
 import type {
   BabyProfile,
+  CancelCubeDisposalResult,
   ConsumeResult,
   ConsumptionRecord,
   ConsumptionRecordUpdate,
   CubeBatch,
+  CubeDisposal,
+  CubeDisposalResult,
   CubeDraft,
   DeleteConsumptionResult,
   FoodReaction,
@@ -21,6 +24,7 @@ export interface CubeRepository {
   list(): Promise<CubeBatch[]>
   listConsumptionRecords(): Promise<ConsumptionRecord[]>
   listMealPlanItems(): Promise<MealPlanItem[]>
+  listDisposals?(): Promise<CubeDisposal[]>
   getIngredientModel?(): Promise<IngredientModel>
   configureLegacyRecipe?(recipeId: string, ingredientNames: string[]): Promise<void>
   getBabyProfile(): Promise<BabyProfile>
@@ -28,6 +32,11 @@ export interface CubeRepository {
   create(draft: CubeDraft): Promise<CubeBatch>
   update(id: string, draft: CubeDraft, expectedUpdatedAt: string): Promise<CubeBatch>
   consume(id: string, requestId?: string): Promise<ConsumeResult>
+  discard?(id: string, expectedUpdatedAt: string): Promise<CubeDisposalResult>
+  cancelDisposal?(
+    disposalId: string,
+    expectedUpdatedAt: string,
+  ): Promise<CancelCubeDisposalResult>
   createMealPlanItems(draft: MealPlanDraft): Promise<MealPlanItem[]>
   completeMealPlanItem(id: string, requestId?: string): Promise<PlanItemConsumeResult>
   removeMealPlanItem(id: string): Promise<void>

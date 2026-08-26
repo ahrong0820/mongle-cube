@@ -1,0 +1,133 @@
+.status-badge--discarded {
+  color: #8a4c43;
+  background: #f8e2dc;
+}
+
+.cube-card.is-discarded {
+  border-color: rgba(167, 96, 83, 0.2);
+}
+
+.cube-card__discard,
+.cube-card__cancel-disposal {
+  width: 100%;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.cube-card__discard {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #735b55;
+  background: #f7f2ef;
+}
+
+.cube-card__discard.is-expired {
+  color: #8b493e;
+  background: #f9e6e0;
+}
+
+.cube-card__cancel-disposal {
+  min-height: 36px;
+  color: #58736a;
+  background: #eef5f1;
+}
+
+.cube-card__discard:disabled,
+.cube-card__cancel-disposal:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.disposal-sheet__content {
+  display: grid;
+  gap: 14px;
+}
+
+.disposal-sheet__summary {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 15px;
+  border-radius: 16px;
+  background: #faf1ee;
+}
+
+.disposal-sheet__summary > span {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border-radius: 12px;
+  color: #8b493e;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.disposal-sheet__summary strong,
+.disposal-sheet__plan-warning strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.disposal-sheet__summary p,
+.disposal-sheet__plan-warning p,
+.disposal-sheet__plan-warning span {
+  margin: 0;
+}
+
+.disposal-sheet__summary p,
+.disposal-sheet__plan-warning span,
+.disposal-sheet__notes {
+  color: #756c68;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.disposal-sheet__notes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0 0 0 20px;
+}
+
+.disposal-sheet__plan-warning {
+  display: flex;
+  gap: 10px;
+  padding: 13px 14px;
+  border: 1px solid rgba(171, 128, 58, 0.22);
+  border-radius: 14px;
+  color: #866529;
+  background: #fff8e8;
+}
+
+.disposal-sheet__plan-warning p {
+  display: grid;
+  gap: 3px;
+}
+
+.disposal-sheet__footer {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 8px;
+}
+
+.disposal-sheet__footer > button {
+  min-height: 46px;
+  border: 0;
+  border-radius: 14px;
+  font: inherit;
+  font-weight: 760;
+}
+
+.disposal-sheet__footer > button:first-child {
+  color: #665f5b;
+  background: #f3f0ee;
+}

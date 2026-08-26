@@ -24,6 +24,16 @@ export interface IngredientModel {
   recordIngredients: Record<string, Ingredient[]>
 }
 
+export interface CubeDisposal {
+  id: string
+  householdId: string
+  batchId: string
+  quantity: number
+  disposedAt: string
+  cancelledAt: string | null
+  createdAt: string
+}
+
 export interface CubeBatch {
   id: string
   householdId: string
@@ -88,6 +98,17 @@ export interface DeleteConsumptionResult {
 export interface ConsumeResult {
   batch: CubeBatch
   record: ConsumptionRecord
+}
+
+export interface CubeDisposalResult {
+  batch: CubeBatch
+  disposal: CubeDisposal
+  pendingPlanCount: number
+}
+
+export interface CancelCubeDisposalResult {
+  batch: CubeBatch
+  disposal: CubeDisposal
 }
 
 export interface MealPlanItem {
