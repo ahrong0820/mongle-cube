@@ -4,22 +4,30 @@
   gap: 4px;
 }
 
-.summary-card .connection-chip,
-.summary-card .home-timeline-chip {
+.summary-card .connection-chip {
   min-height: 23px;
   padding: 3px 6px;
   font-size: 9.5px;
   line-height: 1;
   white-space: nowrap;
-}
-
-.summary-card .connection-chip {
   gap: 4px;
 }
 
 .summary-card .connection-chip > svg {
   width: 13px;
   height: 13px;
+}
+
+.summary-card .home-timeline-chip {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  color: rgba(255, 255, 255, 0.94);
+  background: transparent;
+  font-size: 9.5px;
+  font-weight: 760;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 /* Visual navigation order: freezer, history, calendar, meal plan. */
@@ -115,9 +123,12 @@
     gap: 3px;
   }
 
-  .summary-card .connection-chip,
-  .summary-card .home-timeline-chip {
+  .summary-card .connection-chip {
     padding-inline: 5px;
     font-size: 9px;
+  }
+
+  .summary-card .home-timeline-chip {
+    font-size: 8.5px;
   }
 }
