@@ -21,7 +21,6 @@ import {
 } from './data/repository'
 import {
   getExpiryStatus,
-  getRemainingLabel,
   getSeoulDateKey,
   sortCubeBatches,
 } from './lib/date'
@@ -29,6 +28,7 @@ import {
   deriveLocalIngredientModel,
   EMPTY_INGREDIENT_MODEL,
 } from './lib/ingredientModel'
+import { getInventorySummary } from './lib/inventorySummary'
 import type {
   BabyProfile,
   ConsumptionRecord,
@@ -202,10 +202,7 @@ export default function App() {
     [batches],
   )
 
-  const nextBatch = useMemo(
-    () => batches.find((batch) => batch.quantity > 0) ?? null,
-    [batches],
-  )
+  const inventorySummary = getInventorySummary(batches)
 
   const visibleBatches = useMemo(() => {
     if (stockFilter === 'available') return batches.filter((batch) => batch.quantity > 0)
@@ -625,16 +622,14 @@ export default function App() {
                 <strong>{totalQuantity}</strong>
                 <span>개</span>
               </div>
-              {nextBatch ? (
-                <p className={`next-up next-up--${getExpiryStatus(nextBatch.expiresAt)}`}>
-                  <Icon name="snowflake" size={17} />
-                  <span>
-                    먼저 <b>{nextBatch.name}</b> · {getRemainingLabel(nextBatch.expiresAt)}
-                  </span>
-                </p>
-              ) : (
-                <p className="next-up">새 큐브를 담아볼까요?</p>
-              )}
+              <p className={`next-up next-up--${inventorySummary.kind}`}>
+                <Icon name="snowflake" size={17} />
+                <span>
+                  {inventorySummary.label && <b>{inventorySummary.label}</b>}
+                  {inventorySummary.label && ' · '}
+                  {inventorySummary.detail}
+                </span>
+              </p>
             </div>
             <img
               alt=""
