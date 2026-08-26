@@ -462,7 +462,7 @@ export default function App() {
     if (!repository) throw new Error('저장소가 아직 준비되지 않았어요.')
     const updated = await repository.updateBabyProfile(profile)
     setBabyProfile(updated)
-    showToast('아기 날짜 정보를 저장했어요.')
+    showToast('아기·가족 정보를 저장했어요.')
   }
 
   const handleSave = async (draft: CubeDraft) => {
@@ -583,6 +583,7 @@ export default function App() {
       : syncStatus === 'connecting'
         ? '동기화 연결 중'
         : '동기화 잠시 멈춤'
+  const householdDisplayName = babyProfile.displayName?.trim() || null
 
   return (
     <div className="app-shell">
@@ -594,7 +595,7 @@ export default function App() {
           <img alt="" src={`${import.meta.env.BASE_URL}assets/favicon.svg`} />
           <div>
             <strong>몽글큐브</strong>
-            <span>우리집 이유식 냉동실</span>
+            <span>{householdDisplayName ? `${householdDisplayName} 이유식 냉동실` : '우리집 이유식 냉동실'}</span>
           </div>
         </a>
         {activeView === 'inventory' && (
@@ -617,7 +618,9 @@ export default function App() {
                 <HomeTimeline dateKey={getSeoulDateKey(new Date())} profile={babyProfile} />
                 {!online && <span className="offline-chip">오프라인</span>}
               </div>
-              <p id="inventory-summary-title">냉동실에 모두</p>
+              <p id="inventory-summary-title">
+                {householdDisplayName ? `${householdDisplayName} 냉동실에 모두` : '냉동실에 모두'}
+              </p>
               <div className="summary-number">
                 <strong>{totalQuantity}</strong>
                 <span>개</span>
@@ -898,6 +901,7 @@ export default function App() {
       />
 
       <BabyProfileSheet
+        identityRequired={shared}
         onClose={() => setBabyProfileOpen(false)}
         onSave={handleSaveBabyProfile}
         open={babyProfileOpen}
