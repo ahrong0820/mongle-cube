@@ -1,4 +1,4 @@
-name: Supabase production baseline repair
+name: Supabase production baseline verify
 
 on:
   push:
@@ -9,11 +9,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: supabase-production-baseline-repair
+  group: supabase-production-baseline-verify
   cancel-in-progress: false
 
 jobs:
-  repair:
+  verify:
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -41,45 +41,30 @@ jobs:
           test "${files[1]}" = "202608250001_record_edit_and_multi_meal.sql"
           test "$(git hash-object supabase/migrations/202608240001_initial_schema.sql)" = "c6b01f1ba43b795057abcc62732d99367c909eb8"
           test "$(git hash-object supabase/migrations/202608250001_record_edit_and_multi_meal.sql)" = "cc42fe9e005e2678152bb84232d72c4b2bc63658"
-          git diff --exit-code -- supabase/migrations
           echo "Supabase CLI: $(supabase --version)"
-          printf 'Migration files:\n%s\n' "${files[*]}"
 
-      - name: Verify expected production project is accessible
+      - name: Verify and link expected production project
         shell: bash
         run: |
           set -euo pipefail
           supabase projects list | tee /tmp/projects.txt
           grep -F "$EXPECTED_PROJECT_REF" /tmp/projects.txt
           grep -F "mongle-cube" /tmp/projects.txt
-
-      - name: Initialize runner-only config and link production
-        shell: bash
-        run: |
-          set -euo pipefail
           supabase init --force
           supabase link --project-ref "$EXPECTED_PROJECT_REF"
-          test -f supabase/.temp/project-ref
           test "$(cat supabase/.temp/project-ref)" = "$EXPECTED_PROJECT_REF"
           echo "Linked project ref: $(cat supabase/.temp/project-ref)"
 
-      - name: Repair baseline migration history exactly once
-        shell: bash
-        run: |
-          set -euo pipefail
-          supabase migration repair 202608240001 202608250001 \
-            --status applied \
-            --linked
-
-      - name: Verify migration list
+      - name: Migration list
         shell: bash
         run: |
           set -euo pipefail
           supabase migration list --linked 2>&1 | tee /tmp/migration-list.txt
-          grep -E '202608240001[[:space:]]*\|[[:space:]]*202608240001' /tmp/migration-list.txt
-          grep -E '202608250001[[:space:]]*\|[[:space:]]*202608250001' /tmp/migration-list.txt
+          tr -d '`' < /tmp/migration-list.txt > /tmp/migration-list-normalized.txt
+          grep -E '202608240001[[:space:]]*\|[[:space:]]*202608240001' /tmp/migration-list-normalized.txt
+          grep -E '202608250001[[:space:]]*\|[[:space:]]*202608250001' /tmp/migration-list-normalized.txt
 
-      - name: Verify no pending migrations with dry-run
+      - name: Dry-run only
         shell: bash
         run: |
           set -euo pipefail
