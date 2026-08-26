@@ -1,3 +1,4 @@
+import { attachLocalHouseholdIdentitySupport } from './localHouseholdIdentityAdapter'
 import { LocalCubeRepository } from './localRepository'
 import { AppConfigurationError, type CubeRepository } from './repository'
 import { attachSupabaseDisposalSupport } from './supabaseDisposalAdapter'
@@ -8,7 +9,7 @@ export async function connectRepository(): Promise<CubeRepository> {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim()
   const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim()
 
-  if (!url && !key) return new LocalCubeRepository()
+  if (!url && !key) return attachLocalHouseholdIdentitySupport(new LocalCubeRepository())
 
   if (!url || !key) {
     throw new AppConfigurationError(
