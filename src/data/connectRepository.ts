@@ -1,6 +1,7 @@
 import { LocalCubeRepository } from './localRepository'
 import { AppConfigurationError, type CubeRepository } from './repository'
 import { attachSupabaseDisposalSupport } from './supabaseDisposalAdapter'
+import { attachSupabaseHouseholdIdentitySupport } from './supabaseHouseholdIdentityAdapter'
 import { connectSupabaseRepository } from './supabaseRepository'
 
 export async function connectRepository(): Promise<CubeRepository> {
@@ -15,5 +16,7 @@ export async function connectRepository(): Promise<CubeRepository> {
     )
   }
 
-  return attachSupabaseDisposalSupport(await connectSupabaseRepository(url, key))
+  const repository = await connectSupabaseRepository(url, key)
+  attachSupabaseHouseholdIdentitySupport(repository)
+  return attachSupabaseDisposalSupport(repository)
 }
