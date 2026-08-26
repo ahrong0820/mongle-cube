@@ -20,6 +20,29 @@ as $$
   );
 $$;
 
+-- 모든 수량 변경 경로에 대한 마지막 안전장치입니다.
+-- 폐기/취소 RPC는 각각 폐기 기록 생성 전, 취소 처리 후에 수량을 바꿔 이 제약을 통과합니다.
+create or replace function private.prevent_disposed_batch_restock()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.quantity <> old.quantity
+     and private.has_active_cube_disposal(old.id) then
+    raise sqlstate 'PT409' using message = '폐기 기록을 취소한 뒤 수량을 바꿀 수 있습니다.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists prevent_disposed_batch_restock on public.cube_batches;
+create trigger prevent_disposed_batch_restock
+before update of quantity on public.cube_batches
+for each row execute function private.prevent_disposed_batch_restock();
+
 create or replace function public.discard_cube_batch(
   p_batch_id uuid,
   p_expected_updated_at timestamptz
@@ -33,6 +56,7 @@ declare
   v_household_id uuid;
   v_batch public.cube_batches%rowtype;
   v_disposal public.cube_disposals%rowtype;
+  v_discard_quantity smallint;
   v_pending_plan_count integer := 0;
 begin
   v_household_id := private.current_household_id();
@@ -61,6 +85,8 @@ begin
     raise sqlstate 'PT409' using message = '남아 있는 큐브가 없어 폐기할 수 없습니다.';
   end if;
 
+  v_discard_quantity := v_batch.quantity;
+
   select count(*)::integer
   into v_pending_plan_count
   from public.meal_plan_items as plan_item
@@ -68,6 +94,13 @@ begin
     and plan_item.batch_id = v_batch.id
     and plan_item.deleted_at is null
     and plan_item.consumption_record_id is null;
+
+  -- 활성 폐기 기록이 아직 없을 때 먼저 재고를 0으로 만들고, 같은 트랜잭션 안에서 폐기 사건을 남깁니다.
+  update public.cube_batches as batch
+  set quantity = 0
+  where batch.id = v_batch.id
+    and batch.household_id = v_household_id
+  returning * into v_batch;
 
   insert into public.cube_disposals (
     household_id,
@@ -77,15 +110,9 @@ begin
   values (
     v_household_id,
     v_batch.id,
-    v_batch.quantity
+    v_discard_quantity
   )
   returning * into v_disposal;
-
-  update public.cube_batches as batch
-  set quantity = 0
-  where batch.id = v_batch.id
-    and batch.household_id = v_household_id
-  returning * into v_batch;
 
   return pg_catalog.jsonb_build_object(
     'batch', pg_catalog.to_jsonb(v_batch),
@@ -143,19 +170,16 @@ begin
     raise sqlstate 'PT409' using message = '폐기 후 재고가 변경되어 자동 복원할 수 없습니다.';
   end if;
 
-  if v_disposal.quantity > 999 then
-    raise sqlstate 'PT409' using message = '복원할 수량을 확인해 주세요.';
-  end if;
+  -- 먼저 활성 폐기 상태를 해제하고 같은 트랜잭션 안에서 원래 폐기 수량을 복원합니다.
+  update public.cube_disposals as disposal
+  set cancelled_at = pg_catalog.now()
+  where disposal.id = v_disposal.id
+  returning * into v_disposal;
 
   update public.cube_batches as batch
   set quantity = v_disposal.quantity
   where batch.id = v_batch.id
   returning * into v_batch;
-
-  update public.cube_disposals as disposal
-  set cancelled_at = pg_catalog.now()
-  where disposal.id = v_disposal.id
-  returning * into v_disposal;
 
   return pg_catalog.jsonb_build_object(
     'batch', pg_catalog.to_jsonb(v_batch),
@@ -353,6 +377,7 @@ end;
 $$;
 
 revoke all on function private.has_active_cube_disposal(uuid) from public, anon, authenticated;
+revoke all on function private.prevent_disposed_batch_restock() from public, anon, authenticated;
 revoke all on function public.discard_cube_batch(uuid, timestamptz) from public, anon;
 revoke all on function public.cancel_cube_disposal(uuid, timestamptz) from public, anon;
 
