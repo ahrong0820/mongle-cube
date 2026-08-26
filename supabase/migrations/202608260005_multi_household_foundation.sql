@@ -180,7 +180,7 @@ begin
 
   if not v_invite_active then
     if v_member_count >= v_member_limit then
-      raise exception '연결 가능한 기기 10대가 모두 찼습니다.' using errcode = '23514';
+      raise exception '연결 가능한 기기 수가 모두 찼습니다.' using errcode = '23514';
     end if;
     raise exception '기기 연결이 마감된 초대 링크입니다.' using errcode = '22023';
   end if;
