@@ -13,6 +13,7 @@ interface CubeCardProps {
   onConsume: (batch: CubeBatch) => void
   onEdit: (batch: CubeBatch) => void
   onIncrement: (batch: CubeBatch) => void
+  onRemake: (batch: CubeBatch) => void
 }
 
 const statusText = {
@@ -34,6 +35,7 @@ export function CubeCard({
   onConsume,
   onEdit,
   onIncrement,
+  onRemake,
 }: CubeCardProps) {
   const status = getExpiryStatus(batch.expiresAt)
   const empty = batch.quantity === 0
@@ -93,7 +95,7 @@ export function CubeCard({
       <div className="quantity-control" aria-label={`${batch.name} 수량 조절`}>
         <button
           aria-label={`${batch.name} 1개 먹은 기록 남기기`}
-          disabled={pending || batch.quantity === 0}
+          disabled={pending || empty}
           onClick={() => onConsume(batch)}
           type="button"
         >
@@ -103,15 +105,27 @@ export function CubeCard({
         <div aria-hidden="true" className="quantity-control__count">
           {pending ? <span className="mini-spinner" /> : batch.quantity}
         </div>
-        <button
-          aria-label={`${batch.name} 1개 늘리기`}
-          disabled={pending}
-          onClick={() => onIncrement(batch)}
-          type="button"
-        >
-          <Icon name="plus" size={22} />
-          <span>추가</span>
-        </button>
+        {empty ? (
+          <button
+            aria-label={`${batch.name} 다시 만들기`}
+            disabled={pending}
+            onClick={() => onRemake(batch)}
+            type="button"
+          >
+            <Icon name="refresh" size={21} />
+            <span>다시 만들기</span>
+          </button>
+        ) : (
+          <button
+            aria-label={`${batch.name} 1개 늘리기`}
+            disabled={pending}
+            onClick={() => onIncrement(batch)}
+            type="button"
+          >
+            <Icon name="plus" size={22} />
+            <span>추가</span>
+          </button>
+        )}
       </div>
     </article>
   )
