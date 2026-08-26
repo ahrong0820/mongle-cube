@@ -207,6 +207,9 @@ export function ConsumptionHistory({
                     record.unitAmount && record.unit
                       ? `${record.unitAmount}${record.unit}`
                       : null
+                  const reactionLabel = record.reaction
+                    ? reactionMeta[record.reaction].label
+                    : '미기록'
 
                   return (
                     <li className="log-row" key={record.id}>
@@ -226,7 +229,12 @@ export function ConsumptionHistory({
                       </div>
 
                       <div className="reaction-row">
-                        <span className={record.reaction ? `is-${record.reaction}` : 'is-empty'}>
+                        <button
+                          aria-label={`${record.cubeName} 반응 ${reactionLabel} 수정`}
+                          className={`reaction-row__reaction ${record.reaction ? `is-${record.reaction}` : 'is-empty'}`}
+                          onClick={() => onEditRecord(record)}
+                          type="button"
+                        >
                           {record.reaction ? (
                             <>
                               <span aria-hidden="true">{reactionMeta[record.reaction].emoji}</span>
@@ -238,19 +246,17 @@ export function ConsumptionHistory({
                               반응 미기록
                             </>
                           )}
-                        </span>
-                        {record.reactionNote && <p>{record.reactionNote}</p>}
-                      </div>
-
-                      <div className="record-edit-row">
+                        </button>
                         <button
                           aria-label={`${record.cubeName} ${formatHistoryTime(record.consumedAt)} 먹은 기록 수정 또는 삭제`}
+                          className="reaction-row__edit"
                           onClick={() => onEditRecord(record)}
                           type="button"
                         >
-                          <Icon name="edit" size={15} />
-                          기록 수정·삭제
+                          <Icon name="edit" size={14} />
+                          수정·삭제
                         </button>
+                        {record.reactionNote && <p>{record.reactionNote}</p>}
                       </div>
                     </li>
                   )
