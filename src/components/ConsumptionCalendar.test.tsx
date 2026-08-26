@@ -312,7 +312,8 @@ describe('먹은 기록 달력', () => {
     expect(calendarDay).toHaveAccessibleName(/토핑 소고기 1개/)
     expect(calendarDay).toHaveAccessibleName(/간식 사과 1개/)
 
-    const calendarNew = within(calendarDay.querySelector('.month-day__new')!)
+    const calendarNewElement = calendarDay.querySelector('.month-day__new') as HTMLElement
+    const calendarNew = within(calendarNewElement)
     expect(calendarNew.getByText('NEW')).toBeInTheDocument()
     expect(calendarNew.getByText('쌀죽')).toBeInTheDocument()
     expect(calendarNew.getByText('소고기')).toBeInTheDocument()
@@ -320,8 +321,8 @@ describe('먹은 기록 달력', () => {
     expect(calendarNew.queryByText('미기록')).not.toBeInTheDocument()
     expect(calendarNew.queryByText('관찰')).not.toBeInTheDocument()
     expect(calendarNew.queryByText('잘')).not.toBeInTheDocument()
-    expect(calendarNew.container.querySelector('.month-day__category-reaction.is-watch')).toHaveTextContent('!')
-    expect(calendarNew.container.querySelector('.month-day__category-reaction.is-liked')).toHaveTextContent('♥')
+    expect(calendarNewElement.querySelector('.month-day__category-reaction.is-watch')).toHaveTextContent('!')
+    expect(calendarNewElement.querySelector('.month-day__category-reaction.is-liked')).toHaveTextContent('♥')
     expect(calendarDay.querySelector('.month-day__result')).toHaveTextContent('먹은 양')
     expect(calendarDay.querySelector('.month-day__result')).toHaveTextContent('3개 · 65g')
     expect(calendarDay.querySelector('.month-day__reactions')).not.toBeInTheDocument()
