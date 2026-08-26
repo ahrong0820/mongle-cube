@@ -4,16 +4,19 @@ import {
   getExpiryStatus,
   getRemainingLabel,
 } from '../lib/date'
-import type { CubeBatch } from '../types'
+import type { CubeBatch, CubeDisposal } from '../types'
 import { Icon } from './Icon'
 
 interface CubeCardProps {
   batch: CubeBatch
+  disposal?: CubeDisposal | null
   pending?: boolean
   onConsume: (batch: CubeBatch) => void
   onEdit: (batch: CubeBatch) => void
   onIncrement: (batch: CubeBatch) => void
   onRemake: (batch: CubeBatch) => void
+  onDiscard?: (batch: CubeBatch) => void
+  onCancelDisposal?: (batch: CubeBatch, disposal: CubeDisposal) => void
 }
 
 const statusText = {
@@ -31,19 +34,26 @@ const categoryText: Record<CubeBatch['category'], string> = {
 
 export function CubeCard({
   batch,
+  disposal = null,
   pending,
   onConsume,
   onEdit,
   onIncrement,
   onRemake,
+  onDiscard,
+  onCancelDisposal,
 }: CubeCardProps) {
   const status = getExpiryStatus(batch.expiresAt)
   const empty = batch.quantity === 0
+  const discarded = Boolean(disposal)
   const unitText =
     batch.unitAmount && batch.unit ? `1개 ${batch.unitAmount}${batch.unit}` : null
 
   return (
-    <article className={`cube-card ${empty ? 'is-empty' : ''}`} data-status={status}>
+    <article
+      className={`cube-card ${empty ? 'is-empty' : ''} ${discarded ? 'is-discarded' : ''}`}
+      data-status={status}
+    >
       <div className="cube-card__top">
         <div className="cube-card__title-wrap">
           <div className="cube-card__decor" aria-hidden="true">
@@ -59,8 +69,14 @@ export function CubeCard({
               >
                 {categoryText[batch.category]}
               </span>
-              <span className={`status-badge status-badge--${empty ? 'empty' : status}`}>
-                {empty ? '다 먹음' : statusText[status]}
+              <span
+                className={`status-badge status-badge--${discarded ? 'discarded' : empty ? 'empty' : status}`}
+              >
+                {discarded
+                  ? `${disposal?.quantity ?? 0}개 폐기`
+                  : empty
+                    ? '다 먹음'
+                    : statusText[status]}
               </span>
               {unitText && <span className="unit-badge">{unitText}</span>}
             </div>
@@ -84,7 +100,11 @@ export function CubeCard({
         <div className="date-block">
           <span>{formatShortDate(batch.preparedAt)} 제작</span>
           <strong className={`remaining remaining--${status}`}>
-            {empty ? '수량 없음' : getRemainingLabel(batch.expiresAt)}
+            {discarded
+              ? `${disposal?.quantity ?? 0}개 폐기`
+              : empty
+                ? '수량 없음'
+                : getRemainingLabel(batch.expiresAt)}
           </strong>
           <span>{formatDateTime(batch.expiresAt)}까지</span>
         </div>
@@ -127,6 +147,29 @@ export function CubeCard({
           </button>
         )}
       </div>
+
+      {!empty && onDiscard && (
+        <button
+          className={`cube-card__discard ${status === 'expired' ? 'is-expired' : ''}`}
+          disabled={pending}
+          onClick={() => onDiscard(batch)}
+          type="button"
+        >
+          <Icon name="trash" size={16} />
+          남은 {batch.quantity}개 폐기
+        </button>
+      )}
+
+      {discarded && disposal && onCancelDisposal && (
+        <button
+          className="cube-card__cancel-disposal"
+          disabled={pending}
+          onClick={() => onCancelDisposal(batch, disposal)}
+          type="button"
+        >
+          폐기 기록 취소 · {disposal.quantity}개 복원
+        </button>
+      )}
     </article>
   )
 }
