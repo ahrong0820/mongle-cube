@@ -4,6 +4,11 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
 import { getSeoulDateKey } from './lib/date'
 
+async function addIngredient(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.type(screen.getByLabelText('들어간 재료 입력'), name)
+  await user.click(screen.getByRole('button', { name: '재료 추가' }))
+}
+
 describe('몽글큐브 핵심 흐름', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -16,6 +21,7 @@ describe('몽글큐브 핵심 흐름', () => {
 
     await user.click(await screen.findByRole('button', { name: '첫 큐브 등록' }))
     await user.type(screen.getByLabelText(/큐브 이름/), '당근')
+    await addIngredient(user, '당근')
     await user.click(screen.getByRole('button', { name: '큐브 저장' }))
 
     expect(await screen.findByRole('heading', { name: '당근' })).toBeInTheDocument()
@@ -24,6 +30,7 @@ describe('몽글큐브 핵심 흐름', () => {
     await user.click(screen.getByRole('button', { name: '당근 1개 먹은 기록 남기기' }))
     await waitFor(() => expect(screen.getByLabelText('남은 수량 0개')).toBeInTheDocument())
     expect(screen.getByRole('button', { name: '당근 1개 먹은 기록 남기기' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '당근 다시 만들기' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '먹은 기록' }))
     expect(await screen.findByRole('heading', { name: '지금까지 1개 먹었어요' })).toBeInTheDocument()
@@ -46,10 +53,12 @@ describe('몽글큐브 핵심 흐름', () => {
 
     await user.click(await screen.findByRole('button', { name: '첫 큐브 등록' }))
     await user.type(screen.getByLabelText(/큐브 이름/), '브로콜리')
+    await addIngredient(user, '브로콜리')
     await user.click(screen.getByRole('button', { name: '큐브 저장' }))
 
     await user.click(await screen.findByRole('button', { name: '큐브 추가' }))
     await user.type(screen.getByLabelText(/큐브 이름/), '쌀죽')
+    await addIngredient(user, '쌀')
     await user.click(screen.getByRole('button', { name: '베이스' }))
     await user.click(screen.getByRole('button', { name: '큐브 저장' }))
 
@@ -86,6 +95,7 @@ describe('몽글큐브 핵심 흐름', () => {
 
     await user.click(await screen.findByRole('button', { name: '첫 큐브 등록' }))
     await user.type(screen.getByLabelText(/큐브 이름/), '쌀죽')
+    await addIngredient(user, '쌀')
     await user.click(screen.getByRole('button', { name: '베이스' }))
     await user.click(screen.getByRole('button', { name: '큐브 저장' }))
     await user.click(await screen.findByRole('button', { name: '쌀죽 1개 먹은 기록 남기기' }))
