@@ -119,8 +119,8 @@ create index cube_disposals_active_batch_idx
   on public.cube_disposals (household_id, batch_id, disposed_at desc)
   where cancelled_at is null;
 
--- 같은 이름으로 반복 제작된 기존 배치는 하나의 큐브 종류(recipe)로 안전하게 묶습니다.
--- 실제 재료는 추측하지 않으며, 후속 단계에서 사용자가 확인한 뒤 연결합니다.
+-- 같은 이름으로 반복 제작된 기존 배치에서는 큐브 종류(recipe) 후보만 만듭니다.
+-- 실제 재료는 추측하지 않으며, 기존 배치 recipe_id 연결도 후속 확인 단계까지 미룹니다.
 insert into public.cube_recipes (
   household_id,
   name,
@@ -145,14 +145,6 @@ order by
   batch.prepared_at desc,
   batch.created_at desc,
   batch.id desc;
-
-update public.cube_batches as batch
-set recipe_id = recipe.id
-from public.cube_recipes as recipe
-where batch.recipe_id is null
-  and recipe.household_id = batch.household_id
-  and recipe.archived_at is null
-  and lower(btrim(recipe.name)) = lower(btrim(batch.name));
 
 alter table public.ingredients enable row level security;
 alter table public.cube_recipes enable row level security;
