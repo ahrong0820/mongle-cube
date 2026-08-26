@@ -1,0 +1,87 @@
+name: Supabase production baseline repair
+
+on:
+  push:
+    branches:
+      - chore/prod-baseline-repair
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production-baseline-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
+      EXPECTED_PROJECT_REF: xuodcqaxsnekdzjuvykw
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI 2.115.0
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.115.0
+
+      - name: Verify immutable inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(supabase --version)" = "2.115.0"
+          test -n "${SUPABASE_ACCESS_TOKEN:-}"
+          test -n "${SUPABASE_DB_PASSWORD:-}"
+          mapfile -t files < <(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
+          test "${#files[@]}" -eq 2
+          test "${files[0]}" = "202608240001_initial_schema.sql"
+          test "${files[1]}" = "202608250001_record_edit_and_multi_meal.sql"
+          test "$(git hash-object supabase/migrations/202608240001_initial_schema.sql)" = "c6b01f1ba43b795057abcc62732d99367c909eb8"
+          test "$(git hash-object supabase/migrations/202608250001_record_edit_and_multi_meal.sql)" = "cc42fe9e005e2678152bb84232d72c4b2bc63658"
+          git diff --exit-code -- supabase/migrations
+          echo "Supabase CLI: $(supabase --version)"
+          printf 'Migration files:\n%s\n' "${files[*]}"
+
+      - name: Verify expected production project is accessible
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase projects list | tee /tmp/projects.txt
+          grep -F "$EXPECTED_PROJECT_REF" /tmp/projects.txt
+          grep -F "mongle-cube" /tmp/projects.txt
+
+      - name: Initialize runner-only config and link production
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase init --force
+          supabase link --project-ref "$EXPECTED_PROJECT_REF"
+          test -f supabase/.temp/project-ref
+          test "$(cat supabase/.temp/project-ref)" = "$EXPECTED_PROJECT_REF"
+          echo "Linked project ref: $(cat supabase/.temp/project-ref)"
+
+      - name: Repair baseline migration history exactly once
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase migration repair 202608240001 202608250001 \
+            --status applied \
+            --linked
+
+      - name: Verify migration list
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase migration list --linked 2>&1 | tee /tmp/migration-list.txt
+          grep -E '202608240001[[:space:]]*\|[[:space:]]*202608240001' /tmp/migration-list.txt
+          grep -E '202608250001[[:space:]]*\|[[:space:]]*202608250001' /tmp/migration-list.txt
+
+      - name: Verify no pending migrations with dry-run
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase db push --linked --dry-run 2>&1 | tee /tmp/db-push-dry-run.txt
+          grep -Ei 'up to date|no migrations|nothing to push' /tmp/db-push-dry-run.txt
