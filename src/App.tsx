@@ -28,6 +28,12 @@ import {
   deriveLocalIngredientModel,
   EMPTY_INGREDIENT_MODEL,
 } from './lib/ingredientModel'
+import {
+  getUnreadConsumptionRecordCount,
+  markConsumptionRecordsSeen,
+  readSeenConsumptionRecordIds,
+  writeSeenConsumptionRecordIds,
+} from './lib/historyBadge'
 import { getInventorySummary } from './lib/inventorySummary'
 import type {
   BabyProfile,
@@ -63,6 +69,9 @@ export default function App() {
   const [bootAttempt, setBootAttempt] = useState(0)
   const [batches, setBatches] = useState<CubeBatch[]>([])
   const [records, setRecords] = useState<ConsumptionRecord[]>([])
+  const [seenConsumptionRecordIds, setSeenConsumptionRecordIds] = useState<Set<string>>(() =>
+    readSeenConsumptionRecordIds(),
+  )
   const [mealPlanItems, setMealPlanItems] = useState<MealPlanItem[]>([])
   const [disposals, setDisposals] = useState<CubeDisposal[]>([])
   const [ingredientModel, setIngredientModel] = useState<IngredientModel>(EMPTY_INGREDIENT_MODEL)
@@ -201,6 +210,24 @@ export default function App() {
     () => batches.reduce((sum, batch) => sum + batch.quantity, 0),
     [batches],
   )
+
+  const unreadConsumptionRecordCount = useMemo(
+    () => getUnreadConsumptionRecordCount(records, seenConsumptionRecordIds),
+    [records, seenConsumptionRecordIds],
+  )
+
+  const markHistoryRecordsSeen = useCallback(() => {
+    setSeenConsumptionRecordIds((current) => {
+      const next = markConsumptionRecordsSeen(records, current)
+      if (next.size === current.size) return current
+      writeSeenConsumptionRecordIds(next)
+      return next
+    })
+  }, [records])
+
+  useEffect(() => {
+    if (activeView === 'history') markHistoryRecordsSeen()
+  }, [activeView, markHistoryRecordsSeen])
 
   const inventorySummary = getInventorySummary(batches)
 
@@ -539,6 +566,11 @@ export default function App() {
     setMealPlanFormOpen(true)
   }
 
+  const openHistory = () => {
+    markHistoryRecordsSeen()
+    setActiveView('history')
+  }
+
   if (bootState !== 'ready') {
     return (
       <main className="center-state">
@@ -838,12 +870,14 @@ export default function App() {
         <button
           aria-label="먹은 기록"
           aria-current={activeView === 'history' ? 'page' : undefined}
-          onClick={() => setActiveView('history')}
+          onClick={openHistory}
           type="button"
         >
           <Icon name="book" size={21} />
           <span>먹은 기록</span>
-          {records.length > 0 && <b aria-hidden="true">{records.length}</b>}
+          {unreadConsumptionRecordCount > 0 && (
+            <b aria-hidden="true">{unreadConsumptionRecordCount}</b>
+          )}
         </button>
       </nav>
 
