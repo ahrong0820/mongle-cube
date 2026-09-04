@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BabyProfileSheet } from './components/BabyProfileSheet'
+import { BulkConsumptionTimeSheet } from './components/BulkConsumptionTimeSheet'
 import { ClosedCubeGroups } from './components/ClosedCubeGroups'
 import { ConsumptionCalendar } from './components/ConsumptionCalendar'
 import { ConsumptionHistory } from './components/ConsumptionHistory'
@@ -58,6 +59,11 @@ interface ToastState {
   tone: 'success' | 'error'
 }
 
+interface BulkTimeTarget {
+  label: string
+  recordIds: string[]
+}
+
 function normalized(value: string) {
   return value.trim().toLocaleLowerCase('ko-KR')
 }
@@ -92,6 +98,7 @@ export default function App() {
   const [mealPlanInitialDate, setMealPlanInitialDate] = useState(() => getSeoulDateKey(new Date()))
   const [mealPlanInitialSlot, setMealPlanInitialSlot] = useState<MealSlot | undefined>()
   const [recordEditing, setRecordEditing] = useState<ConsumptionRecord | null>(null)
+  const [bulkTimeTarget, setBulkTimeTarget] = useState<BulkTimeTarget | null>(null)
   const [babyProfileOpen, setBabyProfileOpen] = useState(false)
   const [stockFilter, setStockFilter] = useState<StockFilter>('all')
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
@@ -251,6 +258,14 @@ export default function App() {
       ),
     [disposals],
   )
+
+  const bulkTimeRecords = useMemo(() => {
+    if (!bulkTimeTarget) return []
+    const recordsById = new Map(records.map((record) => [record.id, record]))
+    return bulkTimeTarget.recordIds
+      .map((id) => recordsById.get(id))
+      .filter((record): record is ConsumptionRecord => Boolean(record))
+  }, [bulkTimeTarget, records])
 
   const editingDisposal = editing ? activeDisposalByBatchId.get(editing.id) ?? null : null
 
@@ -462,6 +477,22 @@ export default function App() {
       current.map((record) => (record.id === updated.id ? updated : record)),
     )
     showToast(`${updated.cubeName} 먹은 기록을 수정했어요.`)
+  }
+
+  const handleSaveConsumptionRecordsTime = async (time: string) => {
+    if (!repository || !bulkTimeTarget) {
+      throw new Error('일괄 수정할 먹은 기록을 찾지 못했어요.')
+    }
+
+    const updated = await repository.updateConsumptionRecordsTime(
+      bulkTimeTarget.recordIds,
+      time,
+    )
+    const updatedById = new Map(updated.map((record) => [record.id, record]))
+    setRecords((current) =>
+      current.map((record) => updatedById.get(record.id) ?? record),
+    )
+    showToast(`${bulkTimeTarget.label} ${updated.length}개 기록 시간을 ${time}으로 바꿨어요.`)
   }
 
   const handleDeleteConsumptionRecord = async () => {
@@ -822,6 +853,12 @@ export default function App() {
         ) : (
           <ConsumptionHistory
             loading={loading}
+            onEditGroupTime={(groupRecords, label) =>
+              setBulkTimeTarget({
+                label,
+                recordIds: groupRecords.map((record) => record.id),
+              })
+            }
             onEditRecord={setRecordEditing}
             onShowInventory={() => setActiveView('inventory')}
             records={records}
@@ -932,6 +969,14 @@ export default function App() {
         onSave={handleSaveConsumptionRecord}
         open={Boolean(recordEditing)}
         record={recordEditing}
+      />
+
+      <BulkConsumptionTimeSheet
+        dateLabel={bulkTimeTarget?.label ?? ''}
+        onClose={() => setBulkTimeTarget(null)}
+        onSave={handleSaveConsumptionRecordsTime}
+        open={Boolean(bulkTimeTarget)}
+        records={bulkTimeRecords}
       />
 
       <BabyProfileSheet

@@ -12,6 +12,7 @@ export type IconName =
   | 'close'
   | 'chevron'
   | 'calendar'
+  | 'clock'
   | 'check'
   | 'book'
   | 'bowl'
@@ -67,6 +68,12 @@ export function Icon({ name, size = 20, ...props }: IconProps) {
       <>
         <rect x="3" y="5" width="18" height="16" rx="2" />
         <path d="M16 3v4M8 3v4M3 10h18" />
+      </>
+    ),
+    clock: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
       </>
     ),
     check: <path d="m5 12 4 4L19 6" />,

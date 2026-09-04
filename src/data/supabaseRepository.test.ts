@@ -190,6 +190,34 @@ describe('Supabase 큐브 저장소', () => {
     expect(updated).toMatchObject({ reaction: 'liked', consumedAt: '2026-08-22T14:30:00.000Z' })
   })
 
+  it('먹은 기록 시간 일괄 수정 RPC에 기록 ID와 시간을 전달한다', async () => {
+    const secondRow = {
+      ...consumptionRow,
+      id: '30000000-0000-4000-8000-000000000002',
+      consumed_at: '2026-08-24T01:26:00.000Z',
+    }
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        { ...consumptionRow, consumed_at: '2026-08-24T01:26:00.000Z' },
+        secondRow,
+      ],
+      error: null,
+    })
+    const repository = new SupabaseCubeRepository(asClient({ rpc }), householdId)
+
+    const updated = await repository.updateConsumptionRecordsTime(
+      [consumptionRow.id, secondRow.id],
+      '10:26',
+    )
+
+    expect(rpc).toHaveBeenCalledWith('update_consumption_records_time', {
+      p_record_ids: [consumptionRow.id, secondRow.id],
+      p_time: '10:26',
+    })
+    expect(updated).toHaveLength(2)
+    expect(updated.every((record) => record.consumedAt === '2026-08-24T01:26:00.000Z')).toBe(true)
+  })
+
   it('과거 먹은 기록 삭제 결과의 재고 복원 여부를 매핑한다', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: { batch: { ...cubeRow, quantity: 5 }, stock_restored: true },

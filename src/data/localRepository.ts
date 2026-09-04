@@ -1,4 +1,4 @@
-import { calculateExpiresAt, getSeoulDateKey } from '../lib/date'
+import { calculateExpiresAt, fromSeoulDateTimeInput, getSeoulDateKey } from '../lib/date'
 import type {
   BabyProfile,
   ConsumptionRecord,
@@ -496,6 +496,50 @@ export class LocalCubeRepository implements CubeRepository {
     if (!updated) throw new Error('수정할 먹은 기록을 찾지 못했어요.')
     writeState({ ...state, consumptionRecords })
     return updated
+  }
+
+  async updateConsumptionRecordsTime(recordIds: string[], time: string) {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+      throw new Error('일괄 적용할 시간을 확인해 주세요.')
+    }
+
+    const uniqueIds = [...new Set(recordIds)]
+    if (uniqueIds.length === 0 || uniqueIds.length > 50 || uniqueIds.length !== recordIds.length) {
+      throw new Error('수정할 먹은 기록을 확인해 주세요.')
+    }
+
+    const state = readState()
+    const targets = state.consumptionRecords.filter(
+      (record) => uniqueIds.includes(record.id) && !record.cancelledAt,
+    )
+    if (targets.length !== uniqueIds.length) {
+      throw new Error('수정할 먹은 기록을 찾지 못했어요.')
+    }
+
+    const dateKeys = new Set(targets.map((record) => getSeoulDateKey(record.consumedAt)))
+    if (dateKeys.size !== 1) {
+      throw new Error('같은 날짜의 먹은 기록만 한 번에 수정할 수 있어요.')
+    }
+
+    const updatedById = new Map<string, ConsumptionRecord>()
+    for (const record of targets) {
+      const consumedAt = fromSeoulDateTimeInput(
+        `${getSeoulDateKey(record.consumedAt)}T${time}`,
+      )
+      if (new Date(consumedAt).getTime() > Date.now()) {
+        throw new Error('먹은 날짜와 시간은 현재보다 미래일 수 없어요.')
+      }
+      updatedById.set(record.id, { ...record, consumedAt })
+    }
+
+    writeState({
+      ...state,
+      consumptionRecords: state.consumptionRecords.map(
+        (record) => updatedById.get(record.id) ?? record,
+      ),
+    })
+
+    return uniqueIds.map((id) => updatedById.get(id)!)
   }
 
   async deleteConsumptionRecord(recordId: string) {

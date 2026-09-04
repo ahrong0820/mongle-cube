@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { toSeoulDateTimeInput } from '../lib/date'
 import type { CubeDraft } from '../types'
 import { LocalCubeRepository } from './localRepository'
 
@@ -54,6 +55,42 @@ describe('로컬 큐브 저장소', () => {
     expect(await repository.listConsumptionRecords()).toHaveLength(1)
 
     unsubscribe()
+  })
+
+  it('같은 날짜의 먹은 기록 시간을 한 번에 바꾼다', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-04T03:00:00.000Z'))
+
+    try {
+      const repository = new LocalCubeRepository()
+      const created = await repository.create(draft)
+      const first = await repository.consume(
+        created.id,
+        '00000000-0000-4000-8000-000000000011',
+      )
+      const second = await repository.consume(
+        created.id,
+        '00000000-0000-4000-8000-000000000012',
+      )
+
+      const updated = await repository.updateConsumptionRecordsTime(
+        [first.record.id, second.record.id],
+        '10:26',
+      )
+
+      expect(updated).toHaveLength(2)
+      expect(updated.map((record) => toSeoulDateTimeInput(record.consumedAt))).toEqual([
+        '2026-09-04T10:26',
+        '2026-09-04T10:26',
+      ])
+      expect(
+        (await repository.listConsumptionRecords()).map((record) =>
+          toSeoulDateTimeInput(record.consumedAt),
+        ),
+      ).toEqual(['2026-09-04T10:26', '2026-09-04T10:26'])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('같은 요청은 한 번만 차감하고 최근 기록 되돌리기는 수량도 복원한다', async () => {
