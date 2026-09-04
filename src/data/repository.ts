@@ -49,6 +49,7 @@ export interface CubeRepository {
     recordId: string,
     update: ConsumptionRecordUpdate,
   ): Promise<ConsumptionRecord>
+  updateConsumptionRecordsTime(recordIds: string[], time: string): Promise<ConsumptionRecord[]>
   deleteConsumptionRecord(recordId: string): Promise<DeleteConsumptionResult>
   undoConsumption(recordId: string): Promise<CubeBatch>
   incrementQuantity(id: string): Promise<CubeBatch>
