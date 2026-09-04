@@ -499,7 +499,7 @@ export class LocalCubeRepository implements CubeRepository {
   }
 
   async updateConsumptionRecordsTime(recordIds: string[], time: string) {
-    if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(time)) {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
       throw new Error('일괄 적용할 시간을 확인해 주세요.')
     }
 
