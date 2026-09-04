@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ConsumptionRecord, CubeBatch, Ingredient } from '../types'
 import { ConsumptionCalendar } from './ConsumptionCalendar'
 
@@ -54,6 +54,15 @@ const common = {
 }
 
 describe('실제 재료 기준 NEW', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-25T03:00:00.000Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('다른 이름의 새 배치라도 같은 재료면 처음 섭취일에만 NEW로 표시한다', () => {
     const records = [
       record('rice-first', 'batch-rice-1', '쌀미음', '2026-08-23T23:00:00.000Z'),
