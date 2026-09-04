@@ -592,6 +592,19 @@ export class SupabaseCubeRepository implements CubeRepository {
     return mapConsumptionRow(row as ConsumptionRow)
   }
 
+  async updateConsumptionRecordsTime(recordIds: string[], time: string) {
+    const { data, error } = await this.client.rpc('update_consumption_records_time', {
+      p_record_ids: recordIds,
+      p_time: time,
+    })
+    if (error) throw toFriendlyWriteError(error, '먹은 기록 시간을 일괄 수정하지 못했어요.')
+    const rows = (Array.isArray(data) ? data : data ? [data] : []) as ConsumptionRow[]
+    if (rows.length !== recordIds.length) {
+      throw new Error('수정한 먹은 기록을 모두 확인하지 못했어요.')
+    }
+    return rows.map(mapConsumptionRow)
+  }
+
   async deleteConsumptionRecord(recordId: string) {
     const { data, error } = await this.client.rpc('delete_consumption_record', {
       p_record_id: recordId,
