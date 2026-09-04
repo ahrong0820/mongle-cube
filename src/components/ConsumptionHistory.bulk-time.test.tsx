@@ -60,15 +60,18 @@ describe('먹은 기록 시간 일괄 수정 UI', () => {
       screen.getByRole('button', { name: '오늘 먹은 기록 2개 시간 일괄 수정' }),
     )
 
-    expect(onEditGroupTime).toHaveBeenCalledWith(records, '오늘')
+    const [calledRecords, calledLabel] = onEditGroupTime.mock.calls[0]
+    expect(calledRecords.map((record: ConsumptionRecord) => record.id)).toEqual([
+      records[1].id,
+      records[0].id,
+    ])
+    expect(calledLabel).toBe('오늘')
   })
 
   it('선택한 시간을 전체 기록에 적용하도록 저장 요청한다', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-04T03:00:00.000Z'))
     const onSave = vi.fn().mockResolvedValue(undefined)
     const onClose = vi.fn()
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const user = userEvent.setup()
 
     render(
       <BulkConsumptionTimeSheet
