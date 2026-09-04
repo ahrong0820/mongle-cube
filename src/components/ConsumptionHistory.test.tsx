@@ -36,6 +36,7 @@ describe('먹은 기록 목록', () => {
     render(
       <ConsumptionHistory
         loading={false}
+        onEditGroupTime={vi.fn()}
         onEditRecord={onEditRecord}
         onShowInventory={vi.fn()}
         records={[middle, oldest, newest]}
@@ -76,6 +77,7 @@ describe('먹은 기록 목록', () => {
     render(
       <ConsumptionHistory
         loading={false}
+        onEditGroupTime={vi.fn()}
         onEditRecord={onEditRecord}
         onShowInventory={vi.fn()}
         records={[emptyReaction, watched]}
