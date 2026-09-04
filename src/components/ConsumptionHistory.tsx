@@ -12,6 +12,7 @@ interface ConsumptionHistoryProps {
   loading: boolean
   onShowInventory: () => void
   onEditRecord: (record: ConsumptionRecord) => void
+  onEditGroupTime: (records: ConsumptionRecord[], label: string) => void
 }
 
 const reactionMeta: Record<FoodReaction, { label: string; emoji: string }> = {
@@ -123,6 +124,7 @@ export function ConsumptionHistory({
   loading,
   onShowInventory,
   onEditRecord,
+  onEditGroupTime,
 }: ConsumptionHistoryProps) {
   const groups = useMemo(() => groupRecords(records), [records])
   const today = useMemo(() => getTodaySummary(records), [records])
@@ -199,7 +201,20 @@ export function ConsumptionHistory({
             <section className="day-log-card" key={group.key}>
               <header>
                 <h2>{group.label}</h2>
-                <span>{group.records.length}개</span>
+                <div className="day-log-card__meta">
+                  {group.records.length > 1 && (
+                    <button
+                      aria-label={`${group.label} 먹은 기록 ${group.records.length}개 시간 일괄 수정`}
+                      className="day-log-card__bulk-time"
+                      onClick={() => onEditGroupTime(group.records, group.label)}
+                      type="button"
+                    >
+                      <Icon name="clock" size={13} />
+                      시간 일괄 수정
+                    </button>
+                  )}
+                  <span>{group.records.length}개</span>
+                </div>
               </header>
               <ol>
                 {group.records.map((record) => {
