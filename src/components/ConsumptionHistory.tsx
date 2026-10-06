@@ -5,6 +5,7 @@ import {
   getSeoulDateKey,
 } from '../lib/date'
 import type { ConsumptionRecord, FoodReaction } from '../types'
+import { groupConsumptionRecordsForDisplay } from '../lib/consumptionHistoryGroups'
 import { Icon } from './Icon'
 
 interface ConsumptionHistoryProps {
@@ -92,6 +93,29 @@ function getSevenDaySummary(records: ConsumptionRecord[], now = new Date()) {
   })
   const max = Math.max(1, ...days.map((day) => day.count))
   return { days, max }
+}
+
+function getGroupedReactionState(records: ConsumptionRecord[]) {
+  const first = records[0]
+  const allSame = records.every(
+    (record) =>
+      record.reaction === first.reaction &&
+      record.reactionNote === first.reactionNote,
+  )
+
+  if (!allSame) {
+    return {
+      mixed: true,
+      reaction: null as FoodReaction | null,
+      note: '',
+    }
+  }
+
+  return {
+    mixed: false,
+    reaction: first.reaction,
+    note: first.reactionNote,
+  }
 }
 
 function getReactionSummary(records: ConsumptionRecord[]) {
@@ -217,62 +241,153 @@ export function ConsumptionHistory({
                 </div>
               </header>
               <ol>
-                {group.records.map((record) => {
+                {groupConsumptionRecordsForDisplay(group.records).map((displayGroup) => {
+                  const representative = displayGroup.records[0]
                   const unitText =
-                    record.unitAmount && record.unit
-                      ? `${record.unitAmount}${record.unit}`
+                    displayGroup.unitAmount && displayGroup.unit
+                      ? `${displayGroup.unitAmount}${displayGroup.unit}`
                       : null
-                  const reactionLabel = record.reaction
-                    ? reactionMeta[record.reaction].label
-                    : '미기록'
+                  const count = displayGroup.records.length
+                  const containsFirstRecord = displayGroup.records.some((record) =>
+                    firstRecordIds.has(record.id),
+                  )
+                  const groupedReaction = getGroupedReactionState(displayGroup.records)
 
                   return (
-                    <li className="log-row" key={record.id}>
+                    <li
+                      className={`log-row ${count > 1 ? 'is-grouped' : ''}`}
+                      key={displayGroup.key}
+                    >
                       <div className="log-row__main">
-                        <time dateTime={record.consumedAt}>
-                          {formatHistoryTime(record.consumedAt)}
+                        <time dateTime={representative.consumedAt}>
+                          {displayGroup.time}
                         </time>
                         <div className="log-row__name">
                           <span aria-hidden="true" />
-                          <strong>{record.cubeName}</strong>
+                          <strong>{displayGroup.cubeName}</strong>
                           {unitText && <small>1개 {unitText}</small>}
-                          {firstRecordIds.has(record.id) && (
+                          {containsFirstRecord && (
                             <em className="first-record-badge">이 큐브 첫 기록</em>
                           )}
                         </div>
-                        <b>1개</b>
+                        <b>{count}개</b>
                       </div>
 
-                      <div className="reaction-row">
-                        <button
-                          aria-label={`${record.cubeName} 반응 ${reactionLabel} 수정`}
-                          className={`reaction-row__reaction ${record.reaction ? `is-${record.reaction}` : 'is-empty'}`}
-                          onClick={() => onEditRecord(record)}
-                          type="button"
-                        >
-                          {record.reaction ? (
-                            <>
-                              <span aria-hidden="true">{reactionMeta[record.reaction].emoji}</span>
-                              {reactionMeta[record.reaction].label}
-                            </>
-                          ) : (
-                            <>
-                              <span aria-hidden="true">○</span>
-                              반응 미기록
-                            </>
+                      {count === 1 ? (
+                        <div className="reaction-row">
+                          <button
+                            aria-label={`${representative.cubeName} 반응 ${
+                              representative.reaction
+                                ? reactionMeta[representative.reaction].label
+                                : '미기록'
+                            } 수정`}
+                            className={`reaction-row__reaction ${
+                              representative.reaction
+                                ? `is-${representative.reaction}`
+                                : 'is-empty'
+                            }`}
+                            onClick={() => onEditRecord(representative)}
+                            type="button"
+                          >
+                            {representative.reaction ? (
+                              <>
+                                <span aria-hidden="true">
+                                  {reactionMeta[representative.reaction].emoji}
+                                </span>
+                                {reactionMeta[representative.reaction].label}
+                              </>
+                            ) : (
+                              <>
+                                <span aria-hidden="true">○</span>
+                                반응 미기록
+                              </>
+                            )}
+                          </button>
+                          <button
+                            aria-label={`${representative.cubeName} ${displayGroup.time} 먹은 기록 수정 또는 삭제`}
+                            className="reaction-row__edit"
+                            onClick={() => onEditRecord(representative)}
+                            type="button"
+                          >
+                            <Icon name="edit" size={14} />
+                            수정·삭제
+                          </button>
+                          {representative.reactionNote && <p>{representative.reactionNote}</p>}
+                        </div>
+                      ) : (
+                        <div className="reaction-row reaction-row--grouped">
+                          <span
+                            className={`reaction-row__reaction is-static ${
+                              groupedReaction.mixed
+                                ? 'is-mixed'
+                                : groupedReaction.reaction
+                                  ? `is-${groupedReaction.reaction}`
+                                  : 'is-empty'
+                            }`}
+                          >
+                            {groupedReaction.mixed ? (
+                              <>
+                                <span aria-hidden="true">≠</span>
+                                반응·메모 다름
+                              </>
+                            ) : groupedReaction.reaction ? (
+                              <>
+                                <span aria-hidden="true">
+                                  {reactionMeta[groupedReaction.reaction].emoji}
+                                </span>
+                                {reactionMeta[groupedReaction.reaction].label}
+                              </>
+                            ) : (
+                              <>
+                                <span aria-hidden="true">○</span>
+                                반응 미기록
+                              </>
+                            )}
+                          </span>
+
+                          <details className="grouped-record-details">
+                            <summary>
+                              <Icon name="edit" size={14} />
+                              {count}개 상세·수정
+                            </summary>
+                            <div className="grouped-record-details__list">
+                              {displayGroup.records.map((record, index) => {
+                                const reactionLabel = record.reaction
+                                  ? reactionMeta[record.reaction].label
+                                  : '반응 미기록'
+
+                                return (
+                                  <div className="grouped-record-detail" key={record.id}>
+                                    <div>
+                                      <strong>{index + 1}번째 기록</strong>
+                                      <span>
+                                        {record.reaction && (
+                                          <i aria-hidden="true">
+                                            {reactionMeta[record.reaction].emoji}
+                                          </i>
+                                        )}
+                                        {reactionLabel}
+                                      </span>
+                                      {record.reactionNote && <small>{record.reactionNote}</small>}
+                                    </div>
+                                    <button
+                                      aria-label={`${displayGroup.cubeName} ${displayGroup.time} ${index + 1}번째 먹은 기록 수정 또는 삭제`}
+                                      onClick={() => onEditRecord(record)}
+                                      type="button"
+                                    >
+                                      수정·삭제
+                                    </button>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </details>
+
+                          {!groupedReaction.mixed && groupedReaction.note && (
+                            <p>{groupedReaction.note}</p>
                           )}
-                        </button>
-                        <button
-                          aria-label={`${record.cubeName} ${formatHistoryTime(record.consumedAt)} 먹은 기록 수정 또는 삭제`}
-                          className="reaction-row__edit"
-                          onClick={() => onEditRecord(record)}
-                          type="button"
-                        >
-                          <Icon name="edit" size={14} />
-                          수정·삭제
-                        </button>
-                        {record.reactionNote && <p>{record.reactionNote}</p>}
-                      </div>
+                        </div>
+                      )}
                     </li>
                   )
                 })}

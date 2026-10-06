@@ -64,6 +64,74 @@ describe('먹은 기록 목록', () => {
     ])
   })
 
+  it('같은 시간·같은 큐브 기록은 한 줄 수량으로 합치고 상세에서 개별 수정한다', async () => {
+    const user = userEvent.setup()
+    const first = {
+      ...makeRecord('rice-1', '쌀죽', '2026-10-06T01:26:05.000Z'),
+      unitAmount: 30,
+      reaction: 'liked' as const,
+    }
+    const second = {
+      ...makeRecord('rice-2', '쌀죽', '2026-10-06T01:26:48.000Z'),
+      unitAmount: 30,
+      reaction: 'liked' as const,
+    }
+    const onEditRecord = vi.fn()
+
+    render(
+      <ConsumptionHistory
+        loading={false}
+        onEditGroupTime={vi.fn()}
+        onEditRecord={onEditRecord}
+        onShowInventory={vi.fn()}
+        records={[first, second]}
+      />,
+    )
+
+    expect(screen.getAllByText('쌀죽', { selector: '.log-row__name strong' })).toHaveLength(1)
+    const row = screen.getByText('쌀죽', { selector: '.log-row__name strong' }).closest('li')
+    expect(row).not.toBeNull()
+    expect(within(row as HTMLLIElement).getByText('2개', { selector: '.log-row__main > b' })).toBeInTheDocument()
+    expect(
+      within(row as HTMLLIElement).getByText('잘 먹음', {
+        selector: '.reaction-row__reaction',
+      }),
+    ).toBeInTheDocument()
+
+    await user.click(within(row as HTMLLIElement).getByText('2개 상세·수정'))
+    const detailButtons = within(row as HTMLLIElement).getAllByRole('button', {
+      name: /쌀죽 10:26 .*번째 먹은 기록 수정 또는 삭제/,
+    })
+    expect(detailButtons).toHaveLength(2)
+
+    await user.click(detailButtons[0])
+    expect(onEditRecord).toHaveBeenCalledWith(second)
+  })
+
+  it('같은 큐브라도 표시 시간이나 1개당 중량이 다르면 별도 줄로 유지한다', () => {
+    const sameMinuteDifferentAmount = {
+      ...makeRecord('rice-40', '쌀죽', '2026-10-06T01:26:40.000Z'),
+      unitAmount: 40,
+    }
+
+    render(
+      <ConsumptionHistory
+        loading={false}
+        onEditGroupTime={vi.fn()}
+        onEditRecord={vi.fn()}
+        onShowInventory={vi.fn()}
+        records={[
+          { ...makeRecord('rice-30', '쌀죽', '2026-10-06T01:26:05.000Z'), unitAmount: 30 },
+          sameMinuteDifferentAmount,
+          { ...makeRecord('rice-next', '쌀죽', '2026-10-06T01:27:00.000Z'), unitAmount: 30 },
+        ]}
+      />,
+    )
+
+    expect(screen.getAllByText('쌀죽', { selector: '.log-row__name strong' })).toHaveLength(3)
+    expect(screen.getAllByText('1개', { selector: '.log-row__main > b' })).toHaveLength(3)
+  })
+
   it('반응 상자를 눌러 미기록과 기존 반응 모두 바로 수정 화면으로 진입한다', async () => {
     const user = userEvent.setup()
     const emptyReaction = makeRecord('empty', '감자', '2026-08-25T00:30:00.000Z')
