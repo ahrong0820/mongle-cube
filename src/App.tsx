@@ -479,20 +479,29 @@ export default function App() {
     showToast(`${updated.cubeName} 먹은 기록을 수정했어요.`)
   }
 
-  const handleSaveConsumptionRecordsTime = async (time: string) => {
+  const handleSaveConsumptionRecordsTime = async (
+    recordIds: string[],
+    time: string,
+  ) => {
     if (!repository || !bulkTimeTarget) {
       throw new Error('일괄 수정할 먹은 기록을 찾지 못했어요.')
     }
 
-    const updated = await repository.updateConsumptionRecordsTime(
-      bulkTimeTarget.recordIds,
-      time,
-    )
+    const availableIds = new Set(bulkTimeTarget.recordIds)
+    if (
+      recordIds.length < 2 ||
+      new Set(recordIds).size !== recordIds.length ||
+      recordIds.some((id) => !availableIds.has(id))
+    ) {
+      throw new Error('같이 수정할 먹은 기록을 다시 선택해 주세요.')
+    }
+
+    const updated = await repository.updateConsumptionRecordsTime(recordIds, time)
     const updatedById = new Map(updated.map((record) => [record.id, record]))
     setRecords((current) =>
       current.map((record) => updatedById.get(record.id) ?? record),
     )
-    showToast(`${bulkTimeTarget.label} ${updated.length}개 기록 시간을 ${time}으로 바꿨어요.`)
+    showToast(`${bulkTimeTarget.label} 선택한 ${updated.length}개 기록 시간을 ${time}으로 바꿨어요.`)
   }
 
   const handleDeleteConsumptionRecord = async () => {
