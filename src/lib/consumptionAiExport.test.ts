@@ -71,9 +71,9 @@ describe('AI 분석용 먹은 기록 CSV', () => {
       {},
     )
 
-    expect(csv).toContain('"''=위험"')
+    expect(csv).toContain("\"'=위험\"")
     expect(csv).toContain('"쌀 | 단호박"')
-    expect(csv).toContain('"''+메모"')
+    expect(csv).toContain("\"'+메모\"")
   })
 
   it('파일명 날짜는 서울 날짜를 사용한다', () => {
