@@ -14,6 +14,7 @@ interface ConsumptionHistoryProps {
   onShowInventory: () => void
   onEditRecord: (record: ConsumptionRecord) => void
   onEditGroupTime: (records: ConsumptionRecord[], label: string) => void
+  onExportAiCsv?: () => void
 }
 
 const reactionMeta: Record<FoodReaction, { label: string; emoji: string }> = {
@@ -149,6 +150,7 @@ export function ConsumptionHistory({
   onShowInventory,
   onEditRecord,
   onEditGroupTime,
+  onExportAiCsv,
 }: ConsumptionHistoryProps) {
   const groups = useMemo(() => groupRecords(records), [records])
   const today = useMemo(() => getTodaySummary(records), [records])
@@ -180,6 +182,17 @@ export function ConsumptionHistory({
               ? `오늘 ${today.count}개${today.detail ? ` · ${today.detail}` : ''}`
               : '오늘은 아직 기록 전이에요.'}
           </p>
+          {records.length > 0 && onExportAiCsv && (
+            <button
+              aria-label="AI 분석용 먹은 기록 CSV 다운로드"
+              className="record-summary__export"
+              onClick={onExportAiCsv}
+              type="button"
+            >
+              <Icon name="download" size={15} />
+              AI 분석용 CSV
+            </button>
+          )}
         </div>
       </div>
 
