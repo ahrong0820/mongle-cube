@@ -92,7 +92,11 @@ describe('먹은 기록 목록', () => {
     const row = screen.getByText('쌀죽', { selector: '.log-row__name strong' }).closest('li')
     expect(row).not.toBeNull()
     expect(within(row as HTMLLIElement).getByText('2개', { selector: '.log-row__main > b' })).toBeInTheDocument()
-    expect(within(row as HTMLLIElement).getByText('잘 먹음')).toBeInTheDocument()
+    expect(
+      within(row as HTMLLIElement).getByText('잘 먹음', {
+        selector: '.reaction-row__reaction',
+      }),
+    ).toBeInTheDocument()
 
     await user.click(within(row as HTMLLIElement).getByText('2개 상세·수정'))
     const detailButtons = within(row as HTMLLIElement).getAllByRole('button', {
