@@ -34,6 +34,34 @@ const records: ConsumptionRecord[] = [
     reaction: 'liked',
     reactionNote: '',
   },
+  {
+    id: '30000000-0000-4000-8000-000000000003',
+    householdId: '10000000-0000-4000-8000-000000000001',
+    batchId: '20000000-0000-4000-8000-000000000003',
+    cubeName: '쌀죽',
+    unitAmount: 30,
+    unit: 'g',
+    consumedAt: '2026-09-04T08:40:00.000Z',
+    createdAt: '2026-09-04T08:40:00.000Z',
+    cancelledAt: null,
+    planItemId: null,
+    reaction: 'liked',
+    reactionNote: '',
+  },
+  {
+    id: '30000000-0000-4000-8000-000000000004',
+    householdId: '10000000-0000-4000-8000-000000000001',
+    batchId: '20000000-0000-4000-8000-000000000004',
+    cubeName: '브로콜리',
+    unitAmount: 10,
+    unit: 'g',
+    consumedAt: '2026-09-04T08:40:00.000Z',
+    createdAt: '2026-09-04T08:40:01.000Z',
+    cancelledAt: null,
+    planItemId: null,
+    reaction: 'liked',
+    reactionNote: '',
+  },
 ]
 
 afterEach(() => {
@@ -57,18 +85,20 @@ describe('먹은 기록 시간 일괄 수정 UI', () => {
     )
 
     fireEvent.click(
-      screen.getByRole('button', { name: '오늘 먹은 기록 2개 시간 일괄 수정' }),
+      screen.getByRole('button', { name: '오늘 먹은 기록 4개 선택 시간 수정' }),
     )
 
     const [calledRecords, calledLabel] = onEditGroupTime.mock.calls[0]
     expect(calledRecords.map((record: ConsumptionRecord) => record.id)).toEqual([
+      records[3].id,
+      records[2].id,
       records[1].id,
       records[0].id,
     ])
     expect(calledLabel).toBe('오늘')
   })
 
-  it('선택한 시간을 전체 기록에 적용하도록 저장 요청한다', async () => {
+  it('같은 시간 묶음만 골라 선택한 기록에 새 시간을 적용한다', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined)
     const onClose = vi.fn()
     const user = userEvent.setup()
@@ -83,12 +113,49 @@ describe('먹은 기록 시간 일괄 수정 UI', () => {
       />,
     )
 
-    fireEvent.change(screen.getByLabelText('일괄 적용할 시간'), {
-      target: { value: '11:30' },
-    })
-    await user.click(screen.getByRole('button', { name: '2개 시간 변경' }))
+    expect(screen.getByText('10:26')).toBeInTheDocument()
+    expect(screen.getByText('17:40')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '기록을 선택해 주세요' })).toBeDisabled()
 
-    expect(onSave).toHaveBeenCalledWith('11:30')
+    const groupButtons = screen.getAllByRole('button', { name: '이 시간 선택' })
+    await user.click(groupButtons[1])
+
+    expect(screen.getByLabelText('쌀죽 17:40 기록 선택')).toBeChecked()
+    expect(screen.getByLabelText('브로콜리 17:40 기록 선택')).toBeChecked()
+    expect(screen.getByLabelText('청경채 10:26 기록 선택')).not.toBeChecked()
+
+    fireEvent.change(screen.getByLabelText('선택한 기록에 적용할 시간'), {
+      target: { value: '18:10' },
+    })
+    await user.click(screen.getByRole('button', { name: '선택한 2개 변경' }))
+
+    expect(onSave).toHaveBeenCalledWith(
+      [records[2].id, records[3].id],
+      '18:10',
+    )
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('묶음 선택 뒤 일부 기록만 다시 빼서 조정할 수 있다', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    const user = userEvent.setup()
+
+    render(
+      <BulkConsumptionTimeSheet
+        dateLabel="오늘"
+        onClose={vi.fn()}
+        onSave={onSave}
+        open
+        records={records}
+      />,
+    )
+
+    const groupButtons = screen.getAllByRole('button', { name: '이 시간 선택' })
+    await user.click(groupButtons[0])
+    await user.click(screen.getByLabelText('소고기 10:26 기록 선택'))
+
+    expect(screen.getByLabelText('청경채 10:26 기록 선택')).toBeChecked()
+    expect(screen.getByLabelText('소고기 10:26 기록 선택')).not.toBeChecked()
+    expect(screen.getByRole('button', { name: '기록을 선택해 주세요' })).toBeDisabled()
   })
 })
