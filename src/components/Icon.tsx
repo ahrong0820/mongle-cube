@@ -16,6 +16,7 @@ export type IconName =
   | 'check'
   | 'book'
   | 'bowl'
+  | 'download'
 
 interface IconProps extends SVGProps<SVGSVGElement> {
   name: IconName
@@ -87,6 +88,13 @@ export function Icon({ name, size = 20, ...props }: IconProps) {
       <>
         <path d="M4 10h16c0 5-3.6 9-8 9s-8-4-8-9Z" />
         <path d="M7 22h10M15.5 8.5 19 3" />
+      </>
+    ),
+    download: (
+      <>
+        <path d="M12 3v12" />
+        <path d="m7 10 5 5 5-5" />
+        <path d="M5 21h14" />
       </>
     ),
   }

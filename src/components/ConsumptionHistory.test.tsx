@@ -26,6 +26,28 @@ function makeRecord(
 }
 
 describe('먹은 기록 목록', () => {
+  it('먹은 기록이 있으면 AI 분석용 CSV 다운로드 버튼을 제공한다', async () => {
+    const user = userEvent.setup()
+    const onExportAiCsv = vi.fn()
+
+    render(
+      <ConsumptionHistory
+        loading={false}
+        onEditGroupTime={vi.fn()}
+        onEditRecord={vi.fn()}
+        onExportAiCsv={onExportAiCsv}
+        onShowInventory={vi.fn()}
+        records={[makeRecord('rice', '쌀죽', '2026-10-06T01:26:00.000Z')]}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole('button', { name: 'AI 분석용 먹은 기록 CSV 다운로드' }),
+    )
+
+    expect(onExportAiCsv).toHaveBeenCalledTimes(1)
+  })
+
   it('최근 기록만이 아니라 모든 과거 기록에서 수정·삭제 화면으로 진입한다', async () => {
     const user = userEvent.setup()
     const newest = makeRecord('newest', '당근', '2026-08-25T01:30:00.000Z')
