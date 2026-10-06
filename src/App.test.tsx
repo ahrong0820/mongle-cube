@@ -61,6 +61,7 @@ describe('몽글큐브 핵심 흐름', () => {
     await addIngredient(user, '쌀')
     await user.click(screen.getByRole('button', { name: '베이스' }))
     await user.click(screen.getByRole('button', { name: '큐브 저장' }))
+    expect(await screen.findByRole('heading', { name: '쌀죽' })).toBeInTheDocument()
 
     await user.click(await screen.findByRole('button', { name: '식단' }))
     await user.click(screen.getByRole('button', { name: '아침 식단 추가' }))

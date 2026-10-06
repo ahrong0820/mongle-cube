@@ -204,13 +204,13 @@ export function ConsumptionHistory({
                 <div className="day-log-card__meta">
                   {group.records.length > 1 && (
                     <button
-                      aria-label={`${group.label} 먹은 기록 ${group.records.length}개 시간 일괄 수정`}
+                      aria-label={`${group.label} 먹은 기록 ${group.records.length}개 선택 시간 수정`}
                       className="day-log-card__bulk-time"
                       onClick={() => onEditGroupTime(group.records, group.label)}
                       type="button"
                     >
                       <Icon name="clock" size={13} />
-                      시간 일괄 수정
+                      선택 시간 수정
                     </button>
                   )}
                   <span>{group.records.length}개</span>

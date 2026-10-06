@@ -168,3 +168,151 @@
     font-size: 9px;
   }
 }
+
+
+.bulk-consumption-time-sheet__records {
+  display: grid;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.bulk-time-group {
+  overflow: hidden;
+  border: 1px solid #e2ddd5;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.bulk-time-group__header {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px 7px 12px;
+  border-bottom: 1px solid #eee7de;
+  background: #fffaf4;
+  gap: 10px;
+}
+
+.bulk-time-group__header > div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.bulk-time-group__header strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+}
+
+.bulk-time-group__header span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.bulk-time-group__header button {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid #d7e5dc;
+  border-radius: 9px;
+  color: var(--sage-dark);
+  background: #f2f8f4;
+  font-size: 10px;
+  font-weight: 780;
+}
+
+.bulk-time-group__header button[aria-pressed="true"] {
+  border-color: var(--sage);
+  color: var(--white);
+  background: var(--sage);
+}
+
+.bulk-time-group__records {
+  display: grid;
+}
+
+.bulk-time-record {
+  position: relative;
+  display: grid;
+  min-height: 54px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  padding: 9px 12px;
+  cursor: pointer;
+  gap: 9px;
+}
+
+.bulk-time-record + .bulk-time-record {
+  border-top: 1px solid #f1ebe4;
+}
+
+.bulk-time-record.is-selected {
+  background: #f5faf6;
+}
+
+.bulk-time-record input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bulk-time-record__check {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #cfc8bf;
+  border-radius: 7px;
+  color: var(--white);
+  background: var(--white);
+}
+
+.bulk-time-record.is-selected .bulk-time-record__check {
+  border-color: var(--sage);
+  background: var(--sage);
+}
+
+.bulk-time-record__copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.bulk-time-record__copy strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 780;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bulk-time-record__copy small {
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 390px) {
+  .bulk-time-group__header {
+    padding-right: 8px;
+    padding-left: 10px;
+  }
+
+  .bulk-time-group__header button {
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+
+  .bulk-time-record {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+}
