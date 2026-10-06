@@ -36,6 +36,7 @@ import {
   writeSeenConsumptionRecordIds,
 } from './lib/historyBadge'
 import { getInventorySummary } from './lib/inventorySummary'
+import { downloadConsumptionAiCsv } from './lib/consumptionAiExport'
 import type {
   BabyProfile,
   ConsumptionRecord,
@@ -479,6 +480,18 @@ export default function App() {
     showToast(`${updated.cubeName} 먹은 기록을 수정했어요.`)
   }
 
+  const handleExportConsumptionAiCsv = () => {
+    try {
+      downloadConsumptionAiCsv(records, ingredientModel.recordIngredients)
+      showToast(`AI 분석용 먹은 기록 ${records.length}건을 다운로드했어요.`)
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : '먹은 기록을 다운로드하지 못했어요.',
+        'error',
+      )
+    }
+  }
+
   const handleSaveConsumptionRecordsTime = async (
     recordIds: string[],
     time: string,
@@ -862,6 +875,7 @@ export default function App() {
         ) : (
           <ConsumptionHistory
             loading={loading}
+            onExportAiCsv={handleExportConsumptionAiCsv}
             onEditGroupTime={(groupRecords, label) =>
               setBulkTimeTarget({
                 label,
