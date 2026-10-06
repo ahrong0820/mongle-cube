@@ -104,7 +104,7 @@ describe('먹은 기록 목록', () => {
     })
     expect(detailButtons).toHaveLength(2)
 
-    await user.click(detailButtons[1])
+    await user.click(detailButtons[0])
     expect(onEditRecord).toHaveBeenCalledWith(second)
   })
 
