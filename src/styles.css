@@ -831,6 +831,26 @@ a {
   text-overflow: ellipsis;
 }
 
+.record-summary__export {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  margin-top: 10px;
+  border: 1px solid #d6e4da;
+  border-radius: 11px;
+  color: var(--sage-dark);
+  background: var(--sage-soft);
+  font-size: 11px;
+  font-weight: 780;
+  gap: 5px;
+}
+
+.record-summary__export:not(:disabled):active {
+  transform: translateY(1px);
+}
+
 .history-groups,
 .history-skeletons {
   display: grid;
