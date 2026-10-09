@@ -655,15 +655,15 @@ export function ConsumptionCalendar({
                   const endTime = formatHistoryTime(meal.endedAt)
 
                   return (
-                    <section
-                      aria-labelledby={`daily-food-meal-${meal.key}`}
+                    <div
                       className="daily-food-meal"
+                      data-meal-index={mealIndex + 1}
                       key={meal.key}
                     >
                       <header className="daily-food-meal__header">
                         <div>
                           <span>{mealIndex + 1}번째 끼니</span>
-                          <strong id={`daily-food-meal-${meal.key}`}>
+                          <strong>
                             {startTime === endTime ? startTime : `${startTime}–${endTime}`}
                           </strong>
                         </div>
@@ -715,7 +715,7 @@ export function ConsumptionCalendar({
                           <dd>{getAmountSummary(meal.records)}</dd>
                         </div>
                       </dl>
-                    </section>
+                    </div>
                   )
                 })}
               </div>
