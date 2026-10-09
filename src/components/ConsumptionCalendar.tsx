@@ -312,39 +312,67 @@ export function ConsumptionCalendar({
     () => groupConsumptionRecordsIntoMeals(selectedRecords),
     [selectedRecords],
   )
-  const selectedCategoryGroups = useMemo(
-    () =>
-      CATEGORY_ORDER.map((category) => ({
+  const selectedMealFoodSheets = useMemo(() => {
+    const earliestRecordIdByIngredient = new Map<string, string>()
+
+    for (const record of [...selectedRecords].reverse()) {
+      for (const ingredient of getRecordIngredients(record, recordIngredients)) {
+        if (
+          firstDateByIngredient.get(ingredient.id) === selectedDate &&
+          !earliestRecordIdByIngredient.has(ingredient.id)
+        ) {
+          earliestRecordIdByIngredient.set(ingredient.id, record.id)
+        }
+      }
+    }
+
+    return selectedMealGroups.map((meal) => {
+      const mealRecordIds = new Set(meal.records.map((record) => record.id))
+      const categories = CATEGORY_ORDER.map((category) => ({
         category,
-        records: selectedRecords.filter(
+        records: meal.records.filter(
           (record) => (categoryByBatchId.get(record.batchId) ?? 'other') === category,
         ),
       })).filter(({ category, records: categoryRecords }) =>
         category === 'other' ? categoryRecords.length > 0 : true,
-      ),
-    [categoryByBatchId, selectedRecords],
-  )
-  const selectedNewFoods = useMemo(() => {
-    const newIngredients = new Map<string, Ingredient>()
-    for (const record of selectedRecords) {
-      for (const ingredient of getRecordIngredients(record, recordIngredients)) {
-        if (firstDateByIngredient.get(ingredient.id) === selectedDate) {
-          newIngredients.set(ingredient.id, ingredient)
+      )
+
+      const newIngredients = new Map<string, Ingredient>()
+      for (const record of meal.records) {
+        for (const ingredient of getRecordIngredients(record, recordIngredients)) {
+          if (
+            earliestRecordIdByIngredient.get(ingredient.id) === record.id &&
+            mealRecordIds.has(record.id)
+          ) {
+            newIngredients.set(ingredient.id, ingredient)
+          }
         }
       }
-    }
-    return [...newIngredients.values()].map((ingredient) => ({
-      id: ingredient.id,
-      name: ingredient.name,
-      reaction: getStrongestReaction(
-        selectedRecords.filter((record) =>
-          getRecordIngredients(record, recordIngredients).some(
-            (recordIngredient) => recordIngredient.id === ingredient.id,
+
+      return {
+        meal,
+        categories,
+        newFoods: [...newIngredients.values()].map((ingredient) => ({
+          id: ingredient.id,
+          name: ingredient.name,
+          reaction: getStrongestReaction(
+            meal.records.filter((record) =>
+              getRecordIngredients(record, recordIngredients).some(
+                (recordIngredient) => recordIngredient.id === ingredient.id,
+              ),
+            ),
           ),
-        ),
-      ),
-    }))
-  }, [firstDateByIngredient, recordIngredients, selectedDate, selectedRecords])
+        })),
+      }
+    })
+  }, [
+    categoryByBatchId,
+    firstDateByIngredient,
+    recordIngredients,
+    selectedDate,
+    selectedMealGroups,
+    selectedRecords,
+  ])
   const monthRecords = useMemo(
     () =>
       activeRecords.filter(
@@ -616,48 +644,87 @@ export function ConsumptionCalendar({
               <header>
                 <div>
                   <span>오늘의 식단표</span>
-                  <h4 id="daily-food-sheet-title">먹은 내용 한눈에 보기</h4>
+                  <h4 id="daily-food-sheet-title">끼니별 먹은 내용</h4>
                 </div>
-                <strong>{getAmountSummary(selectedRecords)}</strong>
+                <strong>하루 총 {getAmountSummary(selectedRecords)}</strong>
               </header>
 
-              <dl className="daily-food-sheet__rows">
-                {selectedCategoryGroups.map(({ category, records: categoryRecords }) => (
-                  <div className={`daily-food-sheet__row is-${category}`} key={category}>
-                    <dt><i aria-hidden="true">{CATEGORY_META[category].symbol}</i>{CATEGORY_META[category].label}</dt>
-                    <dd>
-                      {categoryRecords.length > 0
-                        ? groupCubes(categoryRecords).map((group) => `${group.name} ${group.count}개`).join(' · ')
-                        : '—'}
-                    </dd>
-                  </div>
-                ))}
-                <div className="daily-food-sheet__row is-new">
-                  <dt><i aria-hidden="true">N</i>NEW</dt>
-                  <dd>
-                    {selectedNewFoods.length > 0 ? (
-                      <span className="daily-food-sheet__new-list">
-                        {selectedNewFoods.map(({ id, name, reaction }) => (
-                          <span className={reaction === 'watch' ? 'has-watch' : ''} key={id}>
-                            <b>{name}</b>
-                            <small>{reaction ? REACTION_META[reaction].label : '반응 미기록'}</small>
-                          </span>
+              <div className="daily-food-sheet__meals">
+                {selectedMealFoodSheets.map(({ meal, categories, newFoods }, mealIndex) => {
+                  const startTime = formatHistoryTime(meal.startedAt)
+                  const endTime = formatHistoryTime(meal.endedAt)
+
+                  return (
+                    <div
+                      className="daily-food-meal"
+                      data-meal-index={mealIndex + 1}
+                      key={meal.key}
+                    >
+                      <header className="daily-food-meal__header">
+                        <div>
+                          <span>{mealIndex + 1}번째 끼니</span>
+                          <strong>
+                            {startTime === endTime ? startTime : `${startTime}–${endTime}`}
+                          </strong>
+                        </div>
+                        <b>{getAmountSummary(meal.records)}</b>
+                      </header>
+
+                      <dl className="daily-food-sheet__rows">
+                        {categories.map(({ category, records: categoryRecords }) => (
+                          <div className={`daily-food-sheet__row is-${category}`} key={category}>
+                            <dt>
+                              <i aria-hidden="true">{CATEGORY_META[category].symbol}</i>
+                              {CATEGORY_META[category].label}
+                            </dt>
+                            <dd>
+                              {categoryRecords.length > 0
+                                ? groupCubes(categoryRecords)
+                                    .map((group) => `${group.name} ${group.count}개`)
+                                    .join(' · ')
+                                : '—'}
+                            </dd>
+                          </div>
                         ))}
-                      </span>
-                    ) : '—'}
-                  </dd>
-                </div>
-                <div className="daily-food-sheet__row is-amount">
-                  <dt><i aria-hidden="true">Σ</i>먹은 양</dt>
-                  <dd>{getAmountSummary(selectedRecords)}</dd>
-                </div>
-              </dl>
+                        <div className="daily-food-sheet__row is-new">
+                          <dt><i aria-hidden="true">N</i>NEW</dt>
+                          <dd>
+                            {newFoods.length > 0 ? (
+                              <span className="daily-food-sheet__new-list">
+                                {newFoods.map(({ id, name, reaction }) => (
+                                  <span
+                                    className={reaction === 'watch' ? 'has-watch' : ''}
+                                    key={id}
+                                  >
+                                    <b>{name}</b>
+                                    <small>
+                                      {reaction
+                                        ? REACTION_META[reaction].label
+                                        : '반응 미기록'}
+                                    </small>
+                                  </span>
+                                ))}
+                              </span>
+                            ) : (
+                              '—'
+                            )}
+                          </dd>
+                        </div>
+                        <div className="daily-food-sheet__row is-amount">
+                          <dt><i aria-hidden="true">Σ</i>먹은 양</dt>
+                          <dd>{getAmountSummary(meal.records)}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  )
+                })}
+              </div>
 
               <p className="daily-food-sheet__notice">
-                NEW는 아기가 실제 재료를 처음 먹은 날이에요. 혼합 큐브의 반응은 큐브 전체에
-                대한 반응으로 기록되며, 맛 반응과 몸의 이상 반응은 다를 수 있어요. 걱정되는
-                모습은 ‘관찰 필요’와 메모로 남겨 주세요. 먹은 양은 기록한 큐브의 1개 용량을
-                기준으로 계산해요.
+                끼니는 첫 기록 시각부터 1시간 이내에 입력된 기록을 함께 묶어요. NEW는 아기가
+                실제 재료를 처음 먹은 끼니에 표시해요. 혼합 큐브의 반응은 큐브 전체에 대한
+                반응으로 기록되며, 맛 반응과 몸의 이상 반응은 다를 수 있어요. 먹은 양은
+                기록한 큐브의 1개 용량을 기준으로 계산해요.
               </p>
             </section>
 

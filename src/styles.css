@@ -1582,6 +1582,60 @@ a {
   white-space: nowrap;
 }
 
+.daily-food-sheet__meals {
+  display: grid;
+  gap: 12px;
+}
+
+.daily-food-meal {
+  overflow: hidden;
+  border: 1px solid #e4dbd0;
+  border-radius: 15px;
+  background: var(--white);
+}
+
+.daily-food-meal__header {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 11px;
+  border-bottom: 1px solid #eee7de;
+  background: #fbf8f4;
+  gap: 10px;
+}
+
+.daily-food-meal__header > div {
+  display: grid;
+  gap: 1px;
+}
+
+.daily-food-meal__header span {
+  color: var(--sage);
+  font-size: 8px;
+  font-weight: 820;
+}
+
+.daily-food-meal__header strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 850;
+}
+
+.daily-food-meal__header > b {
+  flex: 0 0 auto;
+  color: var(--sage-dark);
+  font-size: 9px;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+.daily-food-meal .daily-food-sheet__rows {
+  border: 0;
+  border-radius: 0;
+}
+
 .daily-food-sheet__rows {
   margin: 0;
   overflow: hidden;
