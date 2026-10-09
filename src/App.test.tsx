@@ -123,7 +123,7 @@ describe('몽글큐브 핵심 흐름', () => {
       await screen.findByText('이유식 1일차', { selector: '.calendar-detail__timeline' }),
     ).toBeInTheDocument()
     expect(screen.queryByText('D+1일')).not.toBeInTheDocument()
-    const overview = screen.getByRole('region', { name: '먹은 내용 한눈에 보기' })
+    const overview = screen.getByRole('region', { name: '끼니별 먹은 내용' })
     expect(within(overview).getByText('베이스').closest('.daily-food-sheet__row')).toHaveTextContent(
       '쌀죽 1개',
     )
