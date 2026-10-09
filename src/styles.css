@@ -1733,6 +1733,66 @@ a {
   font-weight: 820;
 }
 
+.calendar-meal-groups {
+  display: grid;
+  padding: 12px;
+  background: #fffdf9;
+  gap: 12px;
+}
+
+.calendar-meal-group {
+  overflow: hidden;
+  border: 1px solid #e6ddd3;
+  border-radius: 15px;
+  background: var(--white);
+}
+
+.calendar-meal-group__header {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee7de;
+  background: #fbf8f4;
+  gap: 12px;
+}
+
+.calendar-meal-group__header > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.calendar-meal-group__header span {
+  color: var(--sage);
+  font-size: 9px;
+  font-weight: 820;
+}
+
+.calendar-meal-group__header strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 850;
+}
+
+.calendar-meal-group__header small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.calendar-meal-group__header > b {
+  flex: 0 0 auto;
+  color: var(--sage-dark);
+  font-size: 11px;
+  font-weight: 820;
+}
+
 .calendar-detail__records {
   padding: 0;
   margin: 0;

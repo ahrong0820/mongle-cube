@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { getWeaningDay } from '../lib/baby'
+import { groupConsumptionRecordsIntoMeals } from '../lib/consumptionMealGroups'
 import { formatHistoryTime, getSeoulDateKey } from '../lib/date'
 import type {
   BabyProfile,
@@ -307,6 +308,10 @@ export function ConsumptionCalendar({
     [recordsByDate, selectedDate],
   )
   const selectedCubeGroups = useMemo(() => groupCubes(selectedRecords), [selectedRecords])
+  const selectedMealGroups = useMemo(
+    () => groupConsumptionRecordsIntoMeals(selectedRecords),
+    [selectedRecords],
+  )
   const selectedCategoryGroups = useMemo(
     () =>
       CATEGORY_ORDER.map((category) => ({
@@ -665,38 +670,86 @@ export function ConsumptionCalendar({
               ))}
             </div>
 
-            <ol className="calendar-detail__records">
-              {selectedRecords.map((record) => {
-                const reaction = record.reaction ? REACTION_META[record.reaction] : null
-                const hasWatch = record.reaction === 'watch'
+            <div className="calendar-meal-groups" aria-label="끼니별 먹은 기록">
+              {selectedMealGroups.map((meal, mealIndex) => {
+                const startTime = formatHistoryTime(meal.startedAt)
+                const endTime = formatHistoryTime(meal.endedAt)
+                const mealCubeSummary = groupCubes(meal.records)
+                  .map((group) => `${group.name} ${group.count}개`)
+                  .join(' · ')
 
                 return (
-                  <li className={`calendar-record ${hasWatch ? 'has-watch' : ''}`} key={record.id}>
-                    <div className="calendar-record__main">
-                      <time dateTime={record.consumedAt}>{formatHistoryTime(record.consumedAt)}</time>
-                      <div><strong>{record.cubeName}</strong><small>{formatUnit(record)}</small></div>
-                      <span className={`calendar-record__reaction ${record.reaction ? `is-${record.reaction}` : 'is-empty'}`}>
-                        {reaction ? (
-                          <><i aria-hidden="true">{reaction.symbol}</i>{reaction.label}</>
-                        ) : '반응 미기록'}
-                      </span>
-                    </div>
+                  <section
+                    aria-labelledby={`calendar-meal-${meal.key}`}
+                    className="calendar-meal-group"
+                    key={meal.key}
+                  >
+                    <header className="calendar-meal-group__header">
+                      <div>
+                        <span>{mealIndex + 1}번째 끼니</span>
+                        <strong id={`calendar-meal-${meal.key}`}>
+                          {startTime === endTime ? startTime : `${startTime}–${endTime}`}
+                        </strong>
+                        <small>{mealCubeSummary}</small>
+                      </div>
+                      <b>{meal.records.length}개</b>
+                    </header>
 
-                    {record.reactionNote && <p className="calendar-record__note">{record.reactionNote}</p>}
+                    <ol className="calendar-detail__records">
+                      {meal.records.map((record) => {
+                        const reaction = record.reaction ? REACTION_META[record.reaction] : null
+                        const hasWatch = record.reaction === 'watch'
 
-                    <button
-                      aria-label={`${record.cubeName} ${formatHistoryTime(record.consumedAt)} 먹은 기록 수정 또는 삭제`}
-                      className="calendar-record__edit"
-                      onClick={() => onEditRecord(record)}
-                      type="button"
-                    >
-                      <Icon name="edit" size={15} />
-                      기록 수정·삭제
-                    </button>
-                  </li>
+                        return (
+                          <li
+                            className={`calendar-record ${hasWatch ? 'has-watch' : ''}`}
+                            key={record.id}
+                          >
+                            <div className="calendar-record__main">
+                              <time dateTime={record.consumedAt}>
+                                {formatHistoryTime(record.consumedAt)}
+                              </time>
+                              <div>
+                                <strong>{record.cubeName}</strong>
+                                <small>{formatUnit(record)}</small>
+                              </div>
+                              <span
+                                className={`calendar-record__reaction ${
+                                  record.reaction ? `is-${record.reaction}` : 'is-empty'
+                                }`}
+                              >
+                                {reaction ? (
+                                  <>
+                                    <i aria-hidden="true">{reaction.symbol}</i>
+                                    {reaction.label}
+                                  </>
+                                ) : (
+                                  '반응 미기록'
+                                )}
+                              </span>
+                            </div>
+
+                            {record.reactionNote && (
+                              <p className="calendar-record__note">{record.reactionNote}</p>
+                            )}
+
+                            <button
+                              aria-label={`${record.cubeName} ${formatHistoryTime(record.consumedAt)} 먹은 기록 수정 또는 삭제`}
+                              className="calendar-record__edit"
+                              onClick={() => onEditRecord(record)}
+                              type="button"
+                            >
+                              <Icon name="edit" size={15} />
+                              기록 수정·삭제
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ol>
+                  </section>
                 )
               })}
-            </ol>
+            </div>
           </>
         )}
       </section>

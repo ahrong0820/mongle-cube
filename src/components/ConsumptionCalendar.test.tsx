@@ -172,6 +172,49 @@ describe('먹은 기록 달력', () => {
     expect(detail.getByText('입가에 조금 발적').closest('li')).toHaveClass('has-watch')
   })
 
+  it('선택한 날의 기록을 첫 기록 기준 1시간 이내끼리 끼니로 나눠 보여 준다', () => {
+    render(
+      <ConsumptionCalendar
+        {...commonProps}
+        onEditRecord={vi.fn()}
+        records={[
+          makeRecord({
+            id: 'meal-1-a',
+            cubeName: '쌀죽',
+            consumedAt: '2026-08-25T00:05:00.000Z',
+            createdAt: '2026-08-25T00:05:00.000Z',
+          }),
+          makeRecord({
+            id: 'meal-1-b',
+            cubeName: '소고기',
+            consumedAt: '2026-08-25T00:40:00.000Z',
+            createdAt: '2026-08-25T00:40:00.000Z',
+          }),
+          makeRecord({
+            id: 'meal-2-a',
+            cubeName: '브로콜리',
+            consumedAt: '2026-08-25T01:20:00.000Z',
+            createdAt: '2026-08-25T01:20:00.000Z',
+          }),
+        ]}
+      />,
+    )
+
+    const detail = within(getCalendarDetail())
+    const mealGroups = detail.getAllByRole('region', { name: /\d{2}:\d{2}/ })
+
+    expect(mealGroups).toHaveLength(2)
+    expect(mealGroups[0]).toHaveTextContent('1번째 끼니')
+    expect(mealGroups[0]).toHaveTextContent('09:05–09:40')
+    expect(mealGroups[0]).toHaveTextContent('쌀죽 1개 · 소고기 1개')
+    expect(mealGroups[0]).toHaveTextContent('2개')
+
+    expect(mealGroups[1]).toHaveTextContent('2번째 끼니')
+    expect(mealGroups[1]).toHaveTextContent('10:20')
+    expect(mealGroups[1]).toHaveTextContent('브로콜리 1개')
+    expect(mealGroups[1]).toHaveTextContent('1개')
+  })
+
   it('이전·다음 달로 이동하고 해당 월의 1일을 선택한다', () => {
     render(<ConsumptionCalendar {...commonProps} onEditRecord={vi.fn()} records={[]} />)
 
