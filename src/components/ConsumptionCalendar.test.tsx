@@ -215,6 +215,64 @@ describe('먹은 기록 달력', () => {
     expect(mealGroups[1]).toHaveTextContent('1개')
   })
 
+  it('오늘의 식단표도 같은 1시간 기준으로 끼니별 요약을 분리한다', () => {
+    render(
+      <ConsumptionCalendar
+        batches={[
+          makeBatch('batch-1', '쌀죽', 'base'),
+          makeBatch('batch-2', '소고기', 'topping'),
+          makeBatch('batch-3', '배', 'snack'),
+        ]}
+        onEditProfile={vi.fn()}
+        onEditRecord={vi.fn()}
+        profile={emptyProfile}
+        records={[
+          makeRecord({
+            id: 'breakfast-rice',
+            batchId: 'batch-1',
+            cubeName: '쌀죽',
+            consumedAt: '2026-08-25T00:10:00.000Z',
+            createdAt: '2026-08-25T00:10:00.000Z',
+            unitAmount: 30,
+          }),
+          makeRecord({
+            id: 'breakfast-beef',
+            batchId: 'batch-2',
+            cubeName: '소고기',
+            consumedAt: '2026-08-25T00:45:00.000Z',
+            createdAt: '2026-08-25T00:45:00.000Z',
+            unitAmount: 10,
+          }),
+          makeRecord({
+            id: 'dinner-pear',
+            batchId: 'batch-3',
+            cubeName: '배',
+            consumedAt: '2026-08-25T08:30:00.000Z',
+            createdAt: '2026-08-25T08:30:00.000Z',
+            unitAmount: 20,
+          }),
+        ]}
+      />,
+    )
+
+    const detailElement = getCalendarDetail()
+    const foodSheet = detailElement.querySelector('.daily-food-sheet') as HTMLElement
+    const mealSheets = [...foodSheet.querySelectorAll('.daily-food-meal')] as HTMLElement[]
+
+    expect(mealSheets).toHaveLength(2)
+    expect(within(foodSheet).getByText('하루 총 3개 · 60g')).toBeInTheDocument()
+    expect(mealSheets[0]).toHaveTextContent('1번째 끼니')
+    expect(mealSheets[0]).toHaveTextContent('09:10–09:45')
+    expect(mealSheets[0]).toHaveTextContent('쌀죽 1개')
+    expect(mealSheets[0]).toHaveTextContent('소고기 1개')
+    expect(mealSheets[0]).toHaveTextContent('2개 · 40g')
+
+    expect(mealSheets[1]).toHaveTextContent('2번째 끼니')
+    expect(mealSheets[1]).toHaveTextContent('17:30')
+    expect(mealSheets[1]).toHaveTextContent('배 1개')
+    expect(mealSheets[1]).toHaveTextContent('1개 · 20g')
+  })
+
   it('이전·다음 달로 이동하고 해당 월의 1일을 선택한다', () => {
     render(<ConsumptionCalendar {...commonProps} onEditRecord={vi.fn()} records={[]} />)
 
@@ -318,24 +376,43 @@ describe('먹은 기록 달력', () => {
 
     expect(screen.getByText('이유식 10일차', { selector: '.calendar-detail__timeline' })).toBeInTheDocument()
     expect(screen.queryByText('D+170')).not.toBeInTheDocument()
-    const detailSheet = within(getCalendarDetail())
-    expect(detailSheet.getByText('베이스').closest('.daily-food-sheet__row')).toHaveTextContent(
+    const detailElement = getCalendarDetail()
+    const detailSheet = within(detailElement)
+    const foodSheet = detailElement.querySelector('.daily-food-sheet') as HTMLElement
+    const mealSheets = [...foodSheet.querySelectorAll('.daily-food-meal')] as HTMLElement[]
+
+    expect(mealSheets).toHaveLength(2)
+    expect(within(foodSheet).getByText('하루 총 3개 · 65g')).toBeInTheDocument()
+
+    const firstMeal = within(mealSheets[0])
+    expect(firstMeal.getByText('1번째 끼니')).toBeInTheDocument()
+    expect(firstMeal.getByText('09:00–10:00')).toBeInTheDocument()
+    expect(firstMeal.getByText('베이스').closest('.daily-food-sheet__row')).toHaveTextContent(
       '쌀죽 1개',
     )
-    expect(detailSheet.getByText('토핑').closest('.daily-food-sheet__row')).toHaveTextContent(
+    expect(firstMeal.getByText('토핑').closest('.daily-food-sheet__row')).toHaveTextContent(
       '소고기 1개',
     )
-    expect(detailSheet.getByText('간식').closest('.daily-food-sheet__row')).toHaveTextContent(
+    expect(firstMeal.getByText('간식').closest('.daily-food-sheet__row')).toHaveTextContent('—')
+    const firstNewRow = within(
+      firstMeal.getByText('NEW', { selector: 'dt' }).closest('.daily-food-sheet__row')!,
+    )
+    expect(firstNewRow.getByText('쌀죽')).toBeInTheDocument()
+    expect(firstNewRow.getByText('소고기')).toBeInTheDocument()
+    expect(firstNewRow.getByText('관찰 필요')).toBeInTheDocument()
+    expect(firstMeal.getAllByText('2개 · 35g')).toHaveLength(2)
+
+    const secondMeal = within(mealSheets[1])
+    expect(secondMeal.getByText('2번째 끼니')).toBeInTheDocument()
+    expect(secondMeal.getByText('11:00')).toBeInTheDocument()
+    expect(secondMeal.getByText('간식').closest('.daily-food-sheet__row')).toHaveTextContent(
       '사과 1개',
     )
-    const newRow = within(
-      screen.getByText('NEW', { selector: 'dt' }).closest('.daily-food-sheet__row')!,
+    const secondNewRow = within(
+      secondMeal.getByText('NEW', { selector: 'dt' }).closest('.daily-food-sheet__row')!,
     )
-    expect(newRow.getByText('쌀죽')).toBeInTheDocument()
-    expect(newRow.getByText('소고기')).toBeInTheDocument()
-    expect(newRow.getByText('사과')).toBeInTheDocument()
-    expect(newRow.getByText('관찰 필요')).toBeInTheDocument()
-    expect(detailSheet.getAllByText('3개 · 65g')).toHaveLength(2)
+    expect(secondNewRow.getByText('사과')).toBeInTheDocument()
+    expect(secondMeal.getAllByText('1개 · 30g')).toHaveLength(2)
 
     const calendarDay = screen.getByRole('button', {
       name: /^8월 25일, 3개 기록, 이유식 10일차, 관찰 필요 기록 있음,/,
