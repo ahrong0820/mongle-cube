@@ -399,7 +399,7 @@ create or replace function public.cancel_empty_dish_preparation(
 )
 returns public.meal_preparations
 language plpgsql security definer set search_path = ''
-as $
+as $$
 declare
   v_household_id uuid := private.current_household_id();
   v_prep public.meal_preparations%rowtype;
@@ -424,7 +424,7 @@ begin
   returning * into v_prep;
   return v_prep;
 end;
-$;
+$$;
 
 create or replace function public.cancel_dish_completion(
   p_preparation_id uuid
