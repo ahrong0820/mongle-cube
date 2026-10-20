@@ -831,6 +831,7 @@ export function ConsumptionCalendar({
                 )
               })}
             </div>
+            )}
           </>
         )}
       </section>
