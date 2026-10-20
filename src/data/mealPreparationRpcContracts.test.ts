@@ -33,27 +33,22 @@ describe('식기에 담기 원자적 기록 계약', () => {
     expect(migration).toContain('p_outcome=\'partial\'')
   })
 
-  it('모든 PL/pgSQL 함수 구분자가 쌍으로 닫힌다', () => {
-    const code = migration.split('create or replace function ').slice(1)
-    expect(code.length).toBeGreaterThan(6)
+  it('새/기존 RPC의 SQL 함수 구분자와 문장 종료를 검사한다', () => {
+    const functionCount = (
+      migration.match(/(?:create or replace function|CREATE OR REPLACE FUNCTION)\\b/g) ?? []
+    ).length
+    const terminatedFunctions = migration.match(
+      /(?:create or replace function|CREATE OR REPLACE FUNCTION)\\b[\\s\\S]*?(?:\\$\\$|\\$function\\$);/g,
+    ) ?? []
 
-    for (const fn of code) {
+    expect(functionCount).toBe(9)
+    expect(terminatedFunctions).toHaveLength(functionCount)
+
+    for (const fn of terminatedFunctions) {
       const countDouble = fn.split('$$').length - 1
       const countNamed = fn.split('$function$').length - 1
       expect(countDouble % 2, fn.slice(0, 120)).toBe(0)
       expect(countNamed % 2, fn.slice(0, 120)).toBe(0)
-      expect(fn, fn.slice(0, 120)).toMatch(/\\$(?:\\$|function\\$);\\s*$/)
-    }
-  })
-
-  it('복사해온 기존 RPC도 마지막 달러 구분자 뒤 세미콜론이 있다', () => {
-    const copiedRpcBlock = migration.slice(
-      migration.indexOf('CREATE OR REPLACE FUNCTION public.delete_consumption_record'),
-    )
-    const copiedRpcs = copiedRpcBlock.split('CREATE OR REPLACE FUNCTION ').slice(1)
-    expect(copiedRpcs).toHaveLength(2)
-    for (const rpc of copiedRpcs) {
-      expect(rpc.trimEnd()).toMatch(/\\$function\\$;$/)
     }
   })
 
