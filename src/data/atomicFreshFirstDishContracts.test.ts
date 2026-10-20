@@ -21,7 +21,7 @@ describe('최초 당일 제조 식기 준비 원자성 계약', () => {
   })
 
   it('함수 구분자와 권한 명령이 닫힌다', () => {
-    expect(migration.match(/\\$function\\$/g)?.length).toBe(2)
+    expect(migration.split('$function$').length - 1).toBe(2)
     expect(migration.trim().endsWith('to authenticated;')).toBe(true)
   })
 })
