@@ -1,3 +1,10 @@
+-- Keep pre-meal disposal distinct from items not eaten at meal completion.
+alter table public.meal_preparation_items
+  drop constraint if exists meal_preparation_items_disposition_check;
+alter table public.meal_preparation_items
+  add constraint meal_preparation_items_disposition_check
+  check (disposition in ('ready','consumed','discarded','corrected','unused'));
+
 -- Atomic preparation/stock movement and dish completion RPCs.
 -- Legacy meal plan and direct consumption behavior remains unchanged.
 alter table public.consumption_records
@@ -364,7 +371,7 @@ begin
       end loop;
     end if;
     update public.meal_preparation_items as item
-    set disposition=case when p_outcome='none' then 'discarded' else 'consumed' end,
+    set disposition=case when p_outcome='none' then 'unused' else 'consumed' end,
       consumed_quantity=case when p_outcome='all' then item.prepared_quantity else 0 end,
       discarded_quantity=case when p_outcome='none' then item.prepared_quantity else 0 end,
       updated_at=pg_catalog.now()
@@ -386,6 +393,38 @@ begin
   return v_prep;
 end;
 $$;
+
+create or replace function public.cancel_empty_dish_preparation(
+  p_preparation_id uuid
+)
+returns public.meal_preparations
+language plpgsql security definer set search_path = ''
+as $
+declare
+  v_household_id uuid := private.current_household_id();
+  v_prep public.meal_preparations%rowtype;
+begin
+  select prep.* into v_prep
+  from public.meal_preparations prep
+  where prep.id=p_preparation_id and prep.household_id=v_household_id
+  for update;
+  if not found then raise sqlstate 'PT404' using message='준비한 끼니가 없어요.'; end if;
+  if v_prep.status<>'prepared' then
+    raise sqlstate 'PT409' using message='진행 중인 준비만 취소할 수 있어요.';
+  end if;
+  if exists (
+    select 1 from public.meal_preparation_items item
+    where item.preparation_id=p_preparation_id and item.disposition='ready'
+  ) then
+    raise sqlstate 'PT409' using message='담아둔 큐브를 먼저 정정 또는 폐기해 주세요.';
+  end if;
+  update public.meal_preparations prep
+  set status='cancelled',updated_at=pg_catalog.now()
+  where prep.id=p_preparation_id
+  returning * into v_prep;
+  return v_prep;
+end;
+$;
 
 create or replace function public.cancel_dish_completion(
   p_preparation_id uuid
@@ -418,7 +457,7 @@ begin
   set disposition='ready',consumed_quantity=0,discarded_quantity=0,
     updated_at=pg_catalog.now()
   where item.preparation_id=p_preparation_id
-    and item.disposition in ('consumed','discarded');
+    and item.disposition in ('consumed','unused');
 
   update public.meal_preparations as prep
   set status='prepared',completed_at=null,consumed_at=null,
@@ -436,12 +475,14 @@ revoke all on function public.add_fresh_dish_item(uuid,uuid,text,text,timestampt
 revoke all on function public.remove_dish_item(uuid,text) from public,anon;
 revoke all on function public.complete_dish_preparation(uuid,uuid,timestamptz,text,numeric,text,text,text) from public,anon;
 revoke all on function public.cancel_dish_completion(uuid) from public,anon;
+revoke all on function public.cancel_empty_dish_preparation(uuid) from public,anon;
 grant execute on function public.create_dish_preparation(date,text,jsonb) to authenticated;
 grant execute on function public.add_frozen_dish_items(uuid,jsonb) to authenticated;
 grant execute on function public.add_fresh_dish_item(uuid,uuid,text,text,timestamptz,numeric,text,text,text[],integer,integer) to authenticated;
 grant execute on function public.remove_dish_item(uuid,text) to authenticated;
 grant execute on function public.complete_dish_preparation(uuid,uuid,timestamptz,text,numeric,text,text,text) to authenticated;
 grant execute on function public.cancel_dish_completion(uuid) to authenticated;
+grant execute on function public.cancel_empty_dish_preparation(uuid) to authenticated;
 
 -- Prevent legacy record deletion/undo from re-stocking physically removed portions.
 CREATE OR REPLACE FUNCTION public.delete_consumption_record(p_record_id uuid)
