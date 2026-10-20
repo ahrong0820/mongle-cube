@@ -24,16 +24,17 @@ const REACTION_OPTIONS: { value: FoodReaction; label: string }[] = [
 const EMPTY_DISH: DishData = { preparations: [], items: [] }
 
 function FrozenPicker({
-  batches, onCancel, onSubmit, submitting,
+  batches, onCancel, onSubmit, submitting, servingOn,
 }: {
   batches: CubeBatch[]
+  servingOn: string
   onCancel: () => void
   onSubmit: (selected: FrozenDishSelection[]) => Promise<void>
   submitting: boolean
 }) {
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [error, setError] = useState('')
-  const available = batches.filter((batch) => batch.quantity > 0)
+  const available = batches.filter((batch) => batch.quantity > 0 && getSeoulDateKey(batch.expiresAt) >= servingOn)
   const selections = available
     .map((batch) => ({ batchId: batch.id, quantity: quantities[batch.id] ?? 0 }))
     .filter((item) => item.quantity > 0)
@@ -43,7 +44,7 @@ function FrozenPicker({
       <strong>실제로 식기에 담는 냉동 큐브</strong>
       <p>수량을 고른 뒤 실제로 꺼내 담았을 때 확정해 주세요.</p>
       {available.length === 0 ? (
-        <p>냉동실에 남은 큐브가 없어요.</p>
+        <p>해당 식사 날짜까지 보관기한이 남은 냉동 큐브가 없어요.</p>
       ) : available.map((batch) => (
         <label className="dish-picker__row" key={batch.id}>
           <span>{batch.name}<small>냉동실 {batch.quantity}개 · 1개 {batch.unitAmount ?? '—'}{batch.unit ?? ''}</small></span>
@@ -361,7 +362,7 @@ export function DishPreparationPlanner({
                   }}>빈 식기 취소</button>}
                 </div>
                 {opening && editMode==='frozen' && (
-                  <FrozenPicker batches={batches} submitting={busy}
+                  <FrozenPicker batches={batches} servingOn={selectedDate} submitting={busy}
                     onCancel={()=>setEditMode(null)}
                     onSubmit={(selected)=>executePrepare(slot,selected,prep)}/>
                 )}
