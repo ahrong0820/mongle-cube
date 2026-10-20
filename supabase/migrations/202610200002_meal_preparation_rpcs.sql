@@ -442,3 +442,161 @@ grant execute on function public.add_fresh_dish_item(uuid,uuid,text,text,timesta
 grant execute on function public.remove_dish_item(uuid,text) to authenticated;
 grant execute on function public.complete_dish_preparation(uuid,uuid,timestamptz,text,numeric,text,text,text) to authenticated;
 grant execute on function public.cancel_dish_completion(uuid) to authenticated;
+
+-- Prevent legacy record deletion/undo from re-stocking physically removed portions.
+CREATE OR REPLACE FUNCTION public.delete_consumption_record(p_record_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_batch public.cube_batches%rowtype;
+  v_record public.consumption_records%rowtype;
+  v_stock_restored boolean := false;
+  v_has_active_disposal boolean := false;
+begin
+  select record.*
+  into v_record
+  from public.consumption_records as record
+  where record.id = p_record_id
+    and private.is_household_member(record.household_id)
+  for update;
+
+  if not found then
+    raise sqlstate 'PT404' using message = '삭제할 먹은 기록을 찾지 못했습니다.';
+  end if;
+
+  if v_record.preparation_item_id is not null then
+    raise sqlstate 'PT409'
+      using message='식기에 담아 먹은 기록은 식기에 담기 화면에서 끼니 단위로 정정해 주세요.';
+  end if;
+
+  select batch.*
+  into v_batch
+  from public.cube_batches as batch
+  where batch.id = v_record.batch_id
+    and batch.household_id = v_record.household_id
+    and private.is_household_member(batch.household_id)
+  for update;
+
+  if v_record.cancelled_at is not null then
+    return pg_catalog.jsonb_build_object(
+      'batch', null,
+      'stock_restored', false
+    );
+  end if;
+
+  if found and v_batch.deleted_at is null then
+    v_has_active_disposal := private.has_active_cube_disposal(v_batch.id);
+
+    if not v_has_active_disposal then
+      if v_batch.quantity >= 999 then
+        raise sqlstate 'PT409' using message = '수량이 가득 찬 큐브의 기록은 삭제할 수 없습니다.';
+      end if;
+
+      update public.cube_batches as batch
+      set quantity = batch.quantity + 1
+      where batch.id = v_batch.id
+      returning * into v_batch;
+      v_stock_restored := true;
+    end if;
+  end if;
+
+  update public.consumption_records as record
+  set cancelled_at = pg_catalog.now()
+  where record.id = p_record_id;
+
+  update public.meal_plan_items as plan_item
+  set consumption_record_id = null,
+      updated_at = pg_catalog.now()
+  where plan_item.consumption_record_id = p_record_id
+    and plan_item.household_id = v_record.household_id;
+
+  return pg_catalog.jsonb_build_object(
+    'batch', case when v_stock_restored then pg_catalog.to_jsonb(v_batch) else null end,
+    'stock_restored', v_stock_restored
+  );
+end;
+$function$
+
+CREATE OR REPLACE FUNCTION public.undo_consumption(p_record_id uuid)
+ RETURNS cube_batches
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_batch public.cube_batches%rowtype;
+  v_record public.consumption_records%rowtype;
+  v_latest_record_id uuid;
+begin
+  select record.*
+  into v_record
+  from public.consumption_records as record
+  where record.id = p_record_id
+    and private.is_household_member(record.household_id)
+  for update;
+
+  if not found then
+    raise sqlstate 'PT404' using message = '되돌릴 먹은 기록을 찾지 못했습니다.';
+  end if;
+
+  if v_record.preparation_item_id is not null then
+    raise sqlstate 'PT409'
+      using message='식기에 담아 먹은 기록은 식기에 담기 화면에서 끼니 단위로 정정해 주세요.';
+  end if;
+
+  select batch.*
+  into v_batch
+  from public.cube_batches as batch
+  where batch.id = v_record.batch_id
+    and private.is_household_member(batch.household_id)
+  for update;
+
+  if not found then
+    raise sqlstate 'PT404' using message = '먹은 기록의 큐브를 찾지 못했습니다.';
+  end if;
+
+  if v_record.cancelled_at is not null then
+    return v_batch;
+  end if;
+
+  if private.has_active_cube_disposal(v_batch.id) then
+    raise sqlstate 'PT409' using message = '폐기된 큐브의 먹은 기록은 폐기 기록을 취소한 뒤 되돌릴 수 있습니다.';
+  end if;
+
+  select record.id
+  into v_latest_record_id
+  from public.consumption_records as record
+  where record.household_id = v_record.household_id
+    and record.cancelled_at is null
+  order by record.consumed_at desc, record.created_at desc, record.id desc
+  limit 1;
+
+  if v_latest_record_id <> p_record_id then
+    raise sqlstate 'PT409' using message = '가장 최근에 먹은 기록부터 되돌릴 수 있습니다.';
+  end if;
+
+  if v_batch.deleted_at is not null or v_batch.quantity >= 999 then
+    raise sqlstate 'PT409' using message = '삭제됐거나 수량이 가득 찬 큐브는 되돌릴 수 없습니다.';
+  end if;
+
+  update public.cube_batches as batch
+  set quantity = batch.quantity + 1
+  where batch.id = v_batch.id
+  returning * into v_batch;
+
+  update public.consumption_records as record
+  set cancelled_at = pg_catalog.now()
+  where record.id = p_record_id;
+
+  update public.meal_plan_items as plan_item
+  set consumption_record_id = null,
+      updated_at = pg_catalog.now()
+  where plan_item.consumption_record_id = p_record_id
+    and plan_item.household_id = v_record.household_id;
+
+  return v_batch;
+end;
+$function$
