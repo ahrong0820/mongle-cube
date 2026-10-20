@@ -42,6 +42,18 @@ describe('식기에 담기 원자적 기록 계약', () => {
       const countNamed = fn.split('$function$').length - 1
       expect(countDouble % 2, fn.slice(0, 120)).toBe(0)
       expect(countNamed % 2, fn.slice(0, 120)).toBe(0)
+      expect(fn, fn.slice(0, 120)).toMatch(/\\$(?:\\$|function\\$);\\s*$/)
+    }
+  })
+
+  it('복사해온 기존 RPC도 마지막 달러 구분자 뒤 세미콜론이 있다', () => {
+    const copiedRpcBlock = migration.slice(
+      migration.indexOf('CREATE OR REPLACE FUNCTION public.delete_consumption_record'),
+    )
+    const copiedRpcs = copiedRpcBlock.split('CREATE OR REPLACE FUNCTION ').slice(1)
+    expect(copiedRpcs).toHaveLength(2)
+    for (const rpc of copiedRpcs) {
+      expect(rpc.trimEnd()).toMatch(/\\$function\\$;$/)
     }
   })
 
