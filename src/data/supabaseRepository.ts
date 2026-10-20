@@ -1,3 +1,4 @@
+import type { CompleteDishDraft, DishData, DishPreparation, DishPreparationItem, FreshDishDraft, FrozenDishSelection } from './dishPreparationTypes'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { getSeoulDateKey } from '../lib/date'
 import type {
@@ -87,6 +88,60 @@ interface ConsumptionRow {
   plan_item_id: string | null
   reaction: FoodReaction | null
   reaction_note: string | null
+}
+
+interface DishPreparationRow {
+  id: string
+  household_id: string
+  serving_on: string
+  meal_slot: DishPreparation['mealSlot']
+  status: DishPreparation['status']
+  prepared_at: string
+  consumed_at: string | null
+  completed_at: string | null
+  outcome: DishPreparation['outcome']
+  actual_consumed_amount: number | null
+  actual_consumed_unit: DishPreparation['actualConsumedUnit']
+  reaction: DishPreparation['reaction']
+  reaction_note: string | null
+  updated_at: string
+}
+
+interface DishPreparationItemRow {
+  id: string
+  household_id: string
+  preparation_id: string
+  batch_id: string
+  source_kind: DishPreparationItem['sourceKind']
+  prepared_quantity: number
+  cube_name: string
+  category: DishPreparationItem['category']
+  unit_amount: number | null
+  unit: DishPreparationItem['unit']
+  disposition: DishPreparationItem['disposition']
+  prepared_at: string
+}
+
+function mapDishPreparation(row: DishPreparationRow): DishPreparation {
+  return {
+    id: row.id, householdId: row.household_id, servingOn: row.serving_on,
+    mealSlot: row.meal_slot, status: row.status, preparedAt: row.prepared_at,
+    consumedAt: row.consumed_at, completedAt: row.completed_at,
+    outcome: row.outcome, actualConsumedAmount: row.actual_consumed_amount,
+    actualConsumedUnit: row.actual_consumed_unit,
+    reaction: row.reaction, reactionNote: row.reaction_note ?? '',
+    updatedAt: row.updated_at,
+  }
+}
+
+function mapDishItem(row: DishPreparationItemRow): DishPreparationItem {
+  return {
+    id: row.id, householdId: row.household_id, preparationId: row.preparation_id,
+    batchId: row.batch_id, sourceKind: row.source_kind,
+    preparedQuantity: row.prepared_quantity, cubeName: row.cube_name,
+    category: row.category, unitAmount: row.unit_amount, unit: row.unit,
+    disposition: row.disposition, preparedAt: row.prepared_at,
+  }
 }
 
 interface MealPlanRow {
@@ -319,6 +374,108 @@ export class SupabaseCubeRepository implements CubeRepository {
 
     if (error) throw error
     return (data as MealPlanRow[]).map(mapMealPlanRow)
+  }
+
+  async listDishPreparations(): Promise<DishData> {
+    const [preps, items] = await Promise.all([
+      this.client.from('meal_preparations').select('*')
+        .eq('household_id', this.householdId).neq('status', 'cancelled')
+        .order('serving_on', { ascending: false }),
+      this.client.from('meal_preparation_items').select('*')
+        .eq('household_id', this.householdId)
+        .order('prepared_at', { ascending: true }),
+    ])
+    if (preps.error) throw preps.error
+    if (items.error) throw items.error
+    return {
+      preparations: ((preps.data ?? []) as DishPreparationRow[]).map(mapDishPreparation),
+      items: ((items.data ?? []) as DishPreparationItemRow[]).map(mapDishItem),
+    }
+  }
+
+  async createDishPreparation(
+    servingOn: string,
+    mealSlot: DishPreparation['mealSlot'],
+    selections: FrozenDishSelection[],
+  ) {
+    const { data, error } = await this.client.rpc('create_dish_preparation', {
+      p_serving_on: servingOn,
+      p_meal_slot: mealSlot,
+      p_selections: selections.map((selection) => ({
+        batch_id: selection.batchId, quantity: selection.quantity,
+      })),
+    })
+    if (error) throw toFriendlyWriteError(error, '식기에 담은 내용을 저장하지 못했어요.')
+    return mapDishPreparation(data as DishPreparationRow)
+  }
+
+  async addFrozenDishItems(preparationId: string, selections: FrozenDishSelection[]) {
+    const { data, error } = await this.client.rpc('add_frozen_dish_items', {
+      p_preparation_id: preparationId,
+      p_selections: selections.map((selection) => ({
+        batch_id: selection.batchId, quantity: selection.quantity,
+      })),
+    })
+    if (error) throw toFriendlyWriteError(error, '냉동 큐브를 추가하지 못했어요.')
+    return ((Array.isArray(data) ? data : data ? [data] : []) as DishPreparationItemRow[])
+      .map(mapDishItem)
+  }
+
+  async addFreshDishItem(preparationId: string, draft: FreshDishDraft) {
+    const { data, error } = await this.client.rpc('add_fresh_dish_item', {
+      p_preparation_id: preparationId,
+      p_recipe_id: draft.recipeId,
+      p_name: draft.name,
+      p_category: draft.category,
+      p_prepared_at: draft.preparedAt,
+      p_unit_amount: draft.unitAmount,
+      p_unit: draft.unit,
+      p_memo: draft.memo,
+      p_ingredients: draft.ingredientNames,
+      p_total_made: draft.totalMade,
+      p_to_freeze: draft.toFreeze,
+    })
+    if (error) throw toFriendlyWriteError(error, '당일 만든 큐브를 추가하지 못했어요.')
+    return mapDishItem(data as DishPreparationItemRow)
+  }
+
+  async removeDishItem(itemId: string, resolution: 'corrected' | 'discarded') {
+    const { data, error } = await this.client.rpc('remove_dish_item', {
+      p_item_id: itemId, p_resolution: resolution,
+    })
+    if (error) throw toFriendlyWriteError(error, '식기에서 큐브를 처리하지 못했어요.')
+    return mapDishItem(data as DishPreparationItemRow)
+  }
+
+  async completeDishPreparation(preparationId: string, draft: CompleteDishDraft) {
+    const { data, error } = await this.client.rpc('complete_dish_preparation', {
+      p_preparation_id: preparationId,
+      p_request_id: draft.requestId,
+      p_consumed_at: draft.consumedAt,
+      p_outcome: draft.outcome,
+      p_actual_amount: draft.actualAmount,
+      p_actual_unit: draft.actualUnit,
+      p_reaction: draft.reaction,
+      p_note: draft.note,
+    })
+    if (error) throw toFriendlyWriteError(error, '한 끼 먹은 기록을 완료하지 못했어요.')
+    return mapDishPreparation(data as DishPreparationRow)
+  }
+
+  async cancelDishCompletion(preparationId: string) {
+    const { data, error } = await this.client.rpc('cancel_dish_completion', {
+      p_preparation_id: preparationId,
+    })
+    if (error) throw toFriendlyWriteError(error, '한 끼 기록을 정정하지 못했어요.')
+    return mapDishPreparation(data as DishPreparationRow)
+  }
+
+  async cancelEmptyDishPreparation(preparationId: string) {
+    const { data, error } = await this.client.rpc('cancel_empty_dish_preparation', {
+      p_preparation_id: preparationId,
+    })
+    if (error) throw toFriendlyWriteError(error, '식기 준비를 취소하지 못했어요.')
+    return mapDishPreparation(data as DishPreparationRow)
   }
 
   async getIngredientModel(): Promise<IngredientModel> {
@@ -659,6 +816,8 @@ export class SupabaseCubeRepository implements CubeRepository {
       'cube_batches',
       'consumption_records',
       'meal_plan_items',
+      'meal_preparations',
+      'meal_preparation_items',
       'ingredients',
       'cube_recipes',
       'cube_recipe_ingredients',
