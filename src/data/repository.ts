@@ -27,6 +27,7 @@ export interface CubeRepository {
   listMealPlanItems(): Promise<MealPlanItem[]>
   listDishPreparations?(): Promise<DishData>
   createDishPreparation?(servingOn: string, mealSlot: MealPlanDraft['mealSlot'], selections: FrozenDishSelection[]): Promise<DishPreparation>
+  createFreshDishPreparation?(servingOn: string, mealSlot: MealPlanDraft['mealSlot'], draft: FreshDishDraft): Promise<DishPreparation>
   addFrozenDishItems?(preparationId: string, selections: FrozenDishSelection[]): Promise<DishPreparationItem[]>
   addFreshDishItem?(preparationId: string, draft: FreshDishDraft): Promise<DishPreparationItem>
   removeDishItem?(itemId: string, resolution: 'corrected' | 'discarded'): Promise<DishPreparationItem>
