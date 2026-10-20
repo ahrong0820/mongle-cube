@@ -93,7 +93,7 @@ describe('AI 분석용 먹은 기록 CSV', () => {
       }],
     })
 
-    const lines = csv.split('\\r\\n')
+    const lines = csv.split('\r\n')
     expect(lines).toHaveLength(2)
     expect(lines[0]).toContain('기록종류')
     expect(lines[1]).toContain('"한 끼 일부 섭취","쌀죽 2개","35","g"')
