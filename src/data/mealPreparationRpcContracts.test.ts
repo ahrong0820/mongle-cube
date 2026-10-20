@@ -33,6 +33,18 @@ describe('식기에 담기 원자적 기록 계약', () => {
     expect(migration).toContain('p_outcome=\'partial\'')
   })
 
+  it('모든 PL/pgSQL 함수 구분자가 쌍으로 닫힌다', () => {
+    const code = migration.split('create or replace function ').slice(1)
+    expect(code.length).toBeGreaterThan(6)
+
+    for (const fn of code) {
+      const countDouble = fn.split('$$').length - 1
+      const countNamed = fn.split('$function$').length - 1
+      expect(countDouble % 2, fn.slice(0, 120)).toBe(0)
+      expect(countNamed % 2, fn.slice(0, 120)).toBe(0)
+    }
+  })
+
   it('모든 새 RPC는 authenticated 전용이고 가구 경계를 검사한다', () => {
     for (const fn of [
       'create_dish_preparation',
