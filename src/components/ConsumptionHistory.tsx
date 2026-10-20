@@ -203,7 +203,7 @@ export function ConsumptionHistory({
 
       <DishOutcomeList dishData={dishData} />
       {separateOutcomes.length > 0 && (
-        <p className="dish-outcome-hint">일부 먹음·미섭취 ${separateOutcomes.length}끼니는 위에 별도로 표시했어요. 큐브별 섭취 수량을 추정하지 않아요.</p>
+        <p className="dish-outcome-hint">일부 먹음·미섭취 {separateOutcomes.length}끼니는 위에 별도로 표시했어요. 큐브별 섭취 수량을 추정하지 않아요.</p>
       )}
       {records.length > 0 && (
         <div className="week-summary" aria-label="최근 7일 먹은 큐브 수">
@@ -228,7 +228,7 @@ export function ConsumptionHistory({
           <div />
           <div />
         </div>
-      ) : records.length === 0 ? (
+      ) : records.length === 0 && separateOutcomes.length === 0 ? (
         <div className="empty-state history-empty">
           <img
             alt="빈 이유식 그릇을 든 아기 곰"
