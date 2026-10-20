@@ -772,7 +772,6 @@ export function ConsumptionCalendar({
                         </strong>
                         <small>{mealCubeSummary}</small>
                       </div>
-            )}
                       <b>{meal.records.length}개</b>
                     </header>
 
