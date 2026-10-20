@@ -86,6 +86,7 @@ interface ConsumptionRow {
   created_at: string
   cancelled_at: string | null
   plan_item_id: string | null
+  preparation_item_id?: string | null
   reaction: FoodReaction | null
   reaction_note: string | null
 }
@@ -189,6 +190,7 @@ function mapConsumptionRow(row: ConsumptionRow): ConsumptionRecord {
     createdAt: row.created_at,
     cancelledAt: row.cancelled_at,
     planItemId: row.plan_item_id,
+    preparationItemId: row.preparation_item_id ?? null,
     reaction: row.reaction,
     reactionNote: row.reaction_note ?? '',
   }
