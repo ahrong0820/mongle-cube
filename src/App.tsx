@@ -488,7 +488,7 @@ export default function App() {
 
   const handleExportConsumptionAiCsv = () => {
     try {
-      downloadConsumptionAiCsv(records, ingredientModel.recordIngredients)
+      downloadConsumptionAiCsv(records, ingredientModel.recordIngredients, new Date(), dishData)
       showToast(`AI 분석용 먹은 기록 ${records.length}건을 다운로드했어요.`)
     } catch (error) {
       showToast(
@@ -860,6 +860,7 @@ export default function App() {
         ) : activeView === 'calendar' ? (
           <ConsumptionCalendar
             batches={batches}
+            dishData={dishData}
             onEditProfile={() => setBabyProfileOpen(true)}
             onEditRecord={setRecordEditing}
             profile={babyProfile}
@@ -890,6 +891,7 @@ export default function App() {
           )
         ) : (
           <ConsumptionHistory
+            dishData={dishData}
             loading={loading}
             onExportAiCsv={handleExportConsumptionAiCsv}
             onEditGroupTime={(groupRecords, label) =>
