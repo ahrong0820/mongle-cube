@@ -37,6 +37,9 @@ describe('식기에 담기 원자적 기록 계약', () => {
     const code = migration.split('create or replace function ').slice(1)
     expect(code.length).toBeGreaterThan(6)
 
+    expect(migration.split('$function$;').length - 1).toBe(2)
+    expect(migration).not.toContain('end;\n$function$\n')
+
     for (const fn of code) {
       const countDouble = fn.split('$$').length - 1
       const countNamed = fn.split('$function$').length - 1
