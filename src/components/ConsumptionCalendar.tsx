@@ -485,6 +485,7 @@ export function ConsumptionCalendar({
             const key = formatDateKey(date)
             const weaningDay = getWeaningDay(key, profile)
             const dayRecords = recordsByDate.get(key) ?? []
+            const dishOutcomes = getDishOutcomePreparations(dishData, key)
             const daySummary = buildCalendarDaySummary(
               dayRecords,
               categoryByBatchId,
@@ -496,7 +497,7 @@ export function ConsumptionCalendar({
             const inMonth = key.slice(0, 7) === visibleMonth
             const isToday = key === todayKey
             const isSelected = key === selectedDate
-            const showDaySheet = inMonth && dayRecords.length > 0
+            const showDaySheet = inMonth && (dayRecords.length > 0 || dishOutcomes.length > 0)
             const categorySummary = daySummary.categories
               .filter(({ groups }) => groups.length > 0)
               .map(({ category, groups }) =>
@@ -506,7 +507,9 @@ export function ConsumptionCalendar({
               )
             const spokenSummary =
               dayRecords.length === 0
-                ? '먹은 기록 없음'
+                ? dishOutcomes.length > 0
+                  ? `일부 먹음·미섭취 ${dishOutcomes.length}끼니`
+                  : '먹은 기록 없음'
                 : [
                     `${dayRecords.length}개 기록`,
                     weaningDay !== null ? `이유식 ${weaningDay}일차` : null,
@@ -544,6 +547,11 @@ export function ConsumptionCalendar({
                 </span>
 
                 {showDaySheet && (
+                  dayRecords.length === 0 ? (
+                    <span className="month-day__sheet" aria-hidden="true">
+                      <span className="month-day__result">일부 먹음·미섭취 {dishOutcomes.length}끼니</span>
+                    </span>
+                  ) : (
                   <span className="month-day__sheet" aria-hidden="true">
                     <span className="month-day__categories">
                       {daySummary.categories.map(({ category, groups }) => (
@@ -613,6 +621,7 @@ export function ConsumptionCalendar({
                       </span>
                     </span>
                   </span>
+                  )
                 )}
               </button>
             )
@@ -631,7 +640,7 @@ export function ConsumptionCalendar({
               </small>
             )}
           </div>
-          <b>{selectedRecords.length}개</b>
+          <b>{selectedRecords.length}개{selectedDishOutcomes.length > 0 ? ` · 별도 ${selectedDishOutcomes.length}끼니` : ''}</b>
         </header>
 
         <DishOutcomeList dishData={dishData} date={selectedDate} />
