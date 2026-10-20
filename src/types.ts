@@ -81,6 +81,7 @@ export interface ConsumptionRecord {
   createdAt: string
   cancelledAt: string | null
   planItemId: string | null
+  preparationItemId?: string | null
   reaction: FoodReaction | null
   reactionNote: string
   ingredientNames?: string[]
