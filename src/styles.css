@@ -3834,3 +3834,51 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* Physical meal preparation screen */
+.dish-planner {display:grid;gap:16px;padding:0 0 16px;color:var(--ink)}
+.dish-planner__heading {display:grid;gap:3px}
+.dish-planner__heading span {color:var(--sage-dark);font-size:12px;font-weight:750}
+.dish-planner__heading h1 {margin:0;font-size:26px;letter-spacing:-.05em}
+.dish-planner__date {display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:7px}
+.dish-planner__date button,.dish-planner__date input {min-height:42px;border:1px solid #dedbd4;border-radius:11px;background:#fffdf9;color:var(--ink);font-size:12px;padding:0 10px}
+.dish-planner__date button[aria-pressed="true"] {background:var(--sage);color:white;border-color:var(--sage)}
+.dish-planner__date input {min-width:0;max-width:100%}
+.dish-planner__explain {margin:0;color:var(--muted);font-size:12px;line-height:1.65}
+.dish-planner__slots {display:grid;gap:14px}
+.dish-planner__slot {border:1px solid #e4dfd5;border-radius:19px;background:#fffdf9;box-shadow:0 6px 18px #42371f0a;overflow:hidden}
+.dish-planner__slot>header {display:flex;justify-content:space-between;align-items:center;padding:16px;background:#f2f8f4;border-bottom:1px solid #e5e7df}
+.dish-planner__slot>header>div {display:grid;gap:5px}
+.dish-planner__slot>header strong {font-size:16px}
+.dish-planner__slot>header small {color:var(--muted);font-size:11px}
+.dish-planner__slot>header>b {color:var(--sage-dark);font-size:14px}
+.dish-planner__prepared-at {display:block;margin:12px 15px 0;color:var(--muted);font-size:10px}
+.dish-planner__items {padding:2px 14px;margin:0;list-style:none}
+.dish-planner__items li {display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 0;border-bottom:1px solid #eee9e3}
+.dish-planner__items li>span:first-child {display:grid;min-width:0;gap:4px}
+.dish-planner__items li b {font-size:13px}
+.dish-planner__items li small {color:var(--muted);font-size:10px}
+.dish-planner__item-actions {display:flex;flex:0 0 auto;gap:5px}
+.dish-planner__item-actions button {border:1px solid #e4dfd6;border-radius:8px;background:white;padding:8px;color:#5d665f;font-size:10px}
+.dish-planner__controls {display:flex;flex-wrap:wrap;gap:8px;padding:14px}
+.dish-planner__controls button {min-height:39px;border:1px solid #d4e4da;border-radius:11px;background:#edf6f0;color:var(--sage-dark);padding:7px 10px;font-size:11px;font-weight:780}
+.dish-planner__controls button:last-child {background:var(--sage);color:white}
+.dish-planner__error {padding:10px;border-radius:11px;background:#fff0ef;color:#944b45;font-size:12px}
+.dish-picker {display:grid;gap:12px;margin:0 12px 14px;padding:15px;border:1px solid #dfddd4;border-radius:14px;background:white}
+.dish-picker>strong {font-size:14px}
+.dish-picker p {margin:0;font-size:11px;line-height:1.55;color:var(--muted)}
+.dish-picker>label,.dish-fresh-picker label,.dish-completion label {display:grid;gap:5px;font-size:11px;color:var(--ink);font-weight:720}
+.dish-picker input,.dish-picker select,.dish-picker textarea {min-width:0;min-height:39px;border:1px solid #d6d3cc;border-radius:9px;background:#fff;color:var(--ink);padding:7px 9px;font-size:13px}
+.dish-picker__row {display:flex!important;justify-content:space-between;align-items:center;gap:6px}
+.dish-picker__row>span {display:grid;gap:3px;min-width:0;font-size:12px}
+.dish-picker__row small {font-size:10px;color:var(--muted)}
+.dish-picker__row input {width:65px;text-align:center}
+.dish-actions {display:flex;justify-content:flex-end;gap:8px}
+.dish-actions button {min-height:42px;border:1px solid #ddd8ce;border-radius:10px;background:#f7f7f3;color:var(--ink);padding:0 12px;font-size:11px;font-weight:750}
+.dish-actions .primary-button {background:var(--sage);color:white;border-color:var(--sage)}
+.dish-fresh-picker__numbers {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.dish-completion__notice {padding:10px;background:#fff6e7;border-radius:10px}
+.dish-planner__outcome {display:grid;gap:8px;padding:14px;font-size:12px}
+.dish-planner__outcome small {color:var(--muted);font-size:11px;line-height:1.6}
+.dish-planner__outcome button {justify-self:start;min-height:34px;padding:0 10px;border:1px solid #d7e2dc;border-radius:10px;color:var(--sage-dark);background:#f3faf5;font-size:11px}
