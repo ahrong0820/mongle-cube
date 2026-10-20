@@ -13,6 +13,8 @@ import { Icon } from './components/Icon'
 import { IngredientSetupSheet } from './components/IngredientSetupSheet'
 import { MealPlanFormSheet } from './components/MealPlanFormSheet'
 import { MealPlanner } from './components/MealPlanner'
+import { DishPreparationPlanner } from './components/DishPreparationPlanner'
+import type { DishData } from './data/dishPreparationTypes'
 import { Toast } from './components/Toast'
 import { connectRepository } from './data/connectRepository'
 import {
@@ -80,6 +82,7 @@ export default function App() {
     readSeenConsumptionRecordIds(),
   )
   const [mealPlanItems, setMealPlanItems] = useState<MealPlanItem[]>([])
+  const [dishData, setDishData] = useState<DishData>({ preparations: [], items: [] })
   const [disposals, setDisposals] = useState<CubeDisposal[]>([])
   const [ingredientModel, setIngredientModel] = useState<IngredientModel>(EMPTY_INGREDIENT_MODEL)
   const [babyProfile, setBabyProfile] = useState<BabyProfile>({
@@ -152,6 +155,7 @@ export default function App() {
           nextBatches,
           nextRecords,
           nextMealPlanItems,
+          nextDishData,
           nextDisposals,
           nextBabyProfile,
           sharedIngredientModel,
@@ -159,6 +163,7 @@ export default function App() {
           repository.list(),
           repository.listConsumptionRecords(),
           repository.listMealPlanItems(),
+          repository.listDishPreparations?.() ?? Promise.resolve({ preparations: [], items: [] }),
           repository.listDisposals?.() ?? Promise.resolve([]),
           repository.getBabyProfile(),
           repository.getIngredientModel?.() ?? Promise.resolve(null),
@@ -166,6 +171,7 @@ export default function App() {
         setBatches(sortCubeBatches(nextBatches))
         setRecords(nextRecords)
         setMealPlanItems(nextMealPlanItems)
+        setDishData(nextDishData)
         setDisposals(nextDisposals)
         setBabyProfile(nextBabyProfile)
         setIngredientModel(
@@ -861,17 +867,27 @@ export default function App() {
             records={records}
           />
         ) : activeView === 'planner' ? (
-          <MealPlanner
-            batches={batches}
-            items={mealPlanItems}
-            loading={loading}
-            onAdd={openMealPlanForm}
-            onComplete={handleCompleteMealPlanItem}
-            onEditRecord={setRecordEditing}
-            onRemove={handleRemoveMealPlanItem}
-            pendingIds={pendingPlanIds}
-            records={records}
-          />
+          repository?.mode === 'shared' && repository.listDishPreparations ? (
+            <DishPreparationPlanner
+              batches={batches}
+              dishData={dishData}
+              repository={repository}
+              loading={loading}
+              onChanged={() => loadData()}
+            />
+          ) : (
+            <MealPlanner
+              batches={batches}
+              items={mealPlanItems}
+              loading={loading}
+              onAdd={openMealPlanForm}
+              onComplete={handleCompleteMealPlanItem}
+              onEditRecord={setRecordEditing}
+              onRemove={handleRemoveMealPlanItem}
+              pendingIds={pendingPlanIds}
+              records={records}
+            />
+          )
         ) : (
           <ConsumptionHistory
             loading={loading}
@@ -914,14 +930,24 @@ export default function App() {
           <span>달력</span>
         </button>
         <button
-          aria-label="식단"
+          aria-label={shared ? '식기에 담기' : '식단'}
           aria-current={activeView === 'planner' ? 'page' : undefined}
           onClick={() => setActiveView('planner')}
           type="button"
         >
           <Icon name="calendar" size={21} />
-          <span>식단</span>
-          {mealPlanItems.filter((item) => !item.consumptionRecordId).length > 0 && (
+          <span>{shared ? '식기에 담기' : '식단'}</span>
+          {shared ? (
+            dishData.preparations.filter((prep) =>
+              prep.status === 'prepared' && prep.servingOn >= getSeoulDateKey(new Date()),
+            ).length > 0 && (
+              <b aria-hidden="true">
+                {dishData.preparations.filter((prep) =>
+                  prep.status === 'prepared' && prep.servingOn >= getSeoulDateKey(new Date()),
+                ).length}
+              </b>
+            )
+          ) : mealPlanItems.filter((item) => !item.consumptionRecordId).length > 0 && (
             <b aria-hidden="true">
               {mealPlanItems.filter((item) => !item.consumptionRecordId).length}
             </b>
