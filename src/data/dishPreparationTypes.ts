@@ -28,7 +28,7 @@ export interface DishPreparationItem {
   category: CubeCategory
   unitAmount: number | null
   unit: CubeUnit | null
-  disposition: 'ready' | 'consumed' | 'discarded' | 'corrected' | 'unused'
+  disposition: 'ready' | 'consumed' | 'offered_partial' | 'discarded' | 'corrected' | 'unused'
   preparedAt: string
 }
 
