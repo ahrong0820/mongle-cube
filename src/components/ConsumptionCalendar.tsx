@@ -1,3 +1,5 @@
+import { DishOutcomeList, getDishOutcomePreparations } from './DishOutcomeList'
+import type { DishData } from '../data/dishPreparationTypes'
 import { useMemo, useState } from 'react'
 import { getWeaningDay } from '../lib/baby'
 import { groupConsumptionRecordsIntoMeals } from '../lib/consumptionMealGroups'
@@ -17,6 +19,7 @@ export interface ConsumptionCalendarProps {
   batches: CubeBatch[]
   profile: BabyProfile
   records: ConsumptionRecord[]
+  dishData?: DishData
   recordIngredients?: Readonly<Record<string, Ingredient[]>>
   onEditRecord: (record: ConsumptionRecord) => void
   onEditProfile: () => void
@@ -266,6 +269,7 @@ export function ConsumptionCalendar({
   batches,
   profile,
   records,
+  dishData = { preparations: [], items: [] },
   recordIngredients,
   onEditRecord,
   onEditProfile,
@@ -308,6 +312,10 @@ export function ConsumptionCalendar({
     [recordsByDate, selectedDate],
   )
   const selectedCubeGroups = useMemo(() => groupCubes(selectedRecords), [selectedRecords])
+  const selectedDishOutcomes = useMemo(
+    () => getDishOutcomePreparations(dishData, selectedDate),
+    [dishData, selectedDate],
+  )
   const selectedMealGroups = useMemo(
     () => groupConsumptionRecordsIntoMeals(selectedRecords),
     [selectedRecords],
@@ -477,6 +485,7 @@ export function ConsumptionCalendar({
             const key = formatDateKey(date)
             const weaningDay = getWeaningDay(key, profile)
             const dayRecords = recordsByDate.get(key) ?? []
+            const dishOutcomes = getDishOutcomePreparations(dishData, key)
             const daySummary = buildCalendarDaySummary(
               dayRecords,
               categoryByBatchId,
@@ -488,7 +497,7 @@ export function ConsumptionCalendar({
             const inMonth = key.slice(0, 7) === visibleMonth
             const isToday = key === todayKey
             const isSelected = key === selectedDate
-            const showDaySheet = inMonth && dayRecords.length > 0
+            const showDaySheet = inMonth && (dayRecords.length > 0 || dishOutcomes.length > 0)
             const categorySummary = daySummary.categories
               .filter(({ groups }) => groups.length > 0)
               .map(({ category, groups }) =>
@@ -498,7 +507,9 @@ export function ConsumptionCalendar({
               )
             const spokenSummary =
               dayRecords.length === 0
-                ? '먹은 기록 없음'
+                ? dishOutcomes.length > 0
+                  ? `일부 먹음·미섭취 ${dishOutcomes.length}끼니`
+                  : '먹은 기록 없음'
                 : [
                     `${dayRecords.length}개 기록`,
                     weaningDay !== null ? `이유식 ${weaningDay}일차` : null,
@@ -536,6 +547,11 @@ export function ConsumptionCalendar({
                 </span>
 
                 {showDaySheet && (
+                  dayRecords.length === 0 ? (
+                    <span className="month-day__sheet" aria-hidden="true">
+                      <span className="month-day__result">일부 먹음·미섭취 {dishOutcomes.length}끼니</span>
+                    </span>
+                  ) : (
                   <span className="month-day__sheet" aria-hidden="true">
                     <span className="month-day__categories">
                       {daySummary.categories.map(({ category, groups }) => (
@@ -605,6 +621,7 @@ export function ConsumptionCalendar({
                       </span>
                     </span>
                   </span>
+                  )
                 )}
               </button>
             )
@@ -623,10 +640,12 @@ export function ConsumptionCalendar({
               </small>
             )}
           </div>
-          <b>{selectedRecords.length}개</b>
+          <b>{selectedRecords.length}개{selectedDishOutcomes.length > 0 ? ` · 별도 ${selectedDishOutcomes.length}끼니` : ''}</b>
         </header>
 
-        {selectedRecords.length === 0 ? (
+        <DishOutcomeList dishData={dishData} date={selectedDate} />
+
+        {selectedRecords.length === 0 && selectedDishOutcomes.length === 0 ? (
           <div className="calendar-empty">
             <span aria-hidden="true"><Icon name="bowl" size={25} /></span>
             <strong>
@@ -640,6 +659,7 @@ export function ConsumptionCalendar({
           </div>
         ) : (
           <>
+            {selectedRecords.length > 0 && (
             <section className="daily-food-sheet" aria-labelledby="daily-food-sheet-title">
               <header>
                 <div>
@@ -727,6 +747,7 @@ export function ConsumptionCalendar({
                 기록한 큐브의 1개 용량을 기준으로 계산해요.
               </p>
             </section>
+            )}
 
             <div className="calendar-detail__cube-summary" aria-label="큐브별 먹은 개수">
               {selectedCubeGroups.map((group) => (
@@ -737,6 +758,7 @@ export function ConsumptionCalendar({
               ))}
             </div>
 
+            {selectedRecords.length > 0 && (
             <div className="calendar-meal-groups" aria-label="끼니별 먹은 기록">
               {selectedMealGroups.map((meal, mealIndex) => {
                 const startTime = formatHistoryTime(meal.startedAt)
@@ -817,6 +839,7 @@ export function ConsumptionCalendar({
                 )
               })}
             </div>
+            )}
           </>
         )}
       </section>

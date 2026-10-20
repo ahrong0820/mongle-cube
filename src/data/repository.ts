@@ -1,3 +1,4 @@
+import type { CompleteDishDraft, DishData, DishPreparation, DishPreparationItem, FreshDishDraft, FrozenDishSelection } from './dishPreparationTypes'
 import type {
   BabyProfile,
   CancelCubeDisposalResult,
@@ -24,6 +25,14 @@ export interface CubeRepository {
   list(): Promise<CubeBatch[]>
   listConsumptionRecords(): Promise<ConsumptionRecord[]>
   listMealPlanItems(): Promise<MealPlanItem[]>
+  listDishPreparations?(): Promise<DishData>
+  createDishPreparation?(servingOn: string, mealSlot: MealPlanDraft['mealSlot'], selections: FrozenDishSelection[]): Promise<DishPreparation>
+  addFrozenDishItems?(preparationId: string, selections: FrozenDishSelection[]): Promise<DishPreparationItem[]>
+  addFreshDishItem?(preparationId: string, draft: FreshDishDraft): Promise<DishPreparationItem>
+  removeDishItem?(itemId: string, resolution: 'corrected' | 'discarded'): Promise<DishPreparationItem>
+  completeDishPreparation?(preparationId: string, draft: CompleteDishDraft): Promise<DishPreparation>
+  cancelDishCompletion?(preparationId: string): Promise<DishPreparation>
+  cancelEmptyDishPreparation?(preparationId: string): Promise<DishPreparation>
   listDisposals?(): Promise<CubeDisposal[]>
   getIngredientModel?(): Promise<IngredientModel>
   configureLegacyRecipe?(recipeId: string, ingredientNames: string[]): Promise<void>

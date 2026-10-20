@@ -76,6 +76,30 @@ describe('AI 분석용 먹은 기록 CSV', () => {
     expect(csv).toContain("\"'+메모\"")
   })
 
+  it('혼합 이유식을 일부만 먹었을 때 준비 큐브 수량을 실제 섭취 수량으로 만들지 않는다', () => {
+    const csv = buildConsumptionAiCsv([], {}, {
+      preparations: [{
+        id: 'prep-1', householdId: 'household-1', servingOn: '2026-10-20',
+        mealSlot: 'breakfast', status: 'completed', preparedAt: '2026-10-19T12:00:00.000Z',
+        consumedAt: '2026-10-20T01:10:00.000Z', completedAt: '2026-10-20T01:10:00.000Z',
+        outcome: 'partial', actualConsumedAmount: 35, actualConsumedUnit: 'g',
+        reaction: 'okay', reactionNote: '', updatedAt: '2026-10-20T01:10:00.000Z',
+      }],
+      items: [{
+        id: 'item-1', householdId: 'household-1', preparationId: 'prep-1',
+        batchId: 'batch-1', sourceKind: 'frozen', preparedQuantity: 2,
+        cubeName: '쌀죽', category: 'base', unitAmount: 30, unit: 'g',
+        disposition: 'offered_partial', preparedAt: '2026-10-19T12:00:00.000Z',
+      }],
+    })
+
+    const lines = csv.split('\r\n')
+    expect(lines).toHaveLength(2)
+    expect(lines[0]).toContain('기록종류')
+    expect(lines[1]).toContain('"한 끼 일부 섭취","쌀죽 2개","35","g"')
+    expect(lines[1]).not.toContain('"쌀죽","2"')
+  })
+
   it('파일명 날짜는 서울 날짜를 사용한다', () => {
     expect(getConsumptionAiCsvFilename(new Date('2026-10-05T16:00:00.000Z'))).toBe(
       'mongle-cube-ai-records-2026-10-06.csv',
