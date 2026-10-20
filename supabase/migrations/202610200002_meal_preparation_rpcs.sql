@@ -559,10 +559,10 @@ begin
     'stock_restored', v_stock_restored
   );
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.undo_consumption(p_record_id uuid)
- RETURNS cube_batches
+ RETURNS public.cube_batches
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
@@ -640,4 +640,4 @@ begin
 
   return v_batch;
 end;
-$function$
+$function$;
