@@ -105,7 +105,7 @@ function FreshPicker({
     const ingredients=[...new Set(ingredientText.split(/[,，\n]/).map(s=>s.trim()).filter(Boolean))]
     if (!name.trim() || ingredients.length===0 || Number(unitAmount)<=0 ||
       !Number.isInteger(Number(totalMade)) || !Number.isInteger(Number(toFreeze)) ||
-      Number(totalMade)<1 || Number(toFreeze)<0 || direct<1 || direct>12) {
+      Number(totalMade)<1 || Number(totalMade)>999 || Number(toFreeze)<0 || direct<1 || direct>12) {
       setError('큐브 이름, 들어간 재료, 용량, 제작 개수를 확인해 주세요.')
       return
     }
@@ -354,7 +354,7 @@ export function DishPreparationPlanner({
               {prep?.status!=='completed' && <>
                 <div className="dish-planner__controls">
                   <button type="button" onClick={()=>setPanel(slot,'frozen')} disabled={busy}>+ 냉동 큐브 담기</button>
-                  {prep && <button type="button" onClick={()=>setPanel(slot,'fresh')} disabled={busy}>+ 오늘 만든 큐브</button>}
+                  {(prep || repository.createFreshDishPreparation) && <button type="button" onClick={()=>setPanel(slot,'fresh')} disabled={busy}>+ 오늘 만든 큐브</button>}
                   {prep && quantity>0 && <button type="button" onClick={()=>setPanel(slot,'complete')} disabled={busy}>먹은 기록 완료</button>}
                   {prep && quantity===0 && <button type="button" disabled={busy} onClick={()=>{
                     if(!repository.cancelEmptyDishPreparation)return
@@ -366,9 +366,11 @@ export function DishPreparationPlanner({
                     onCancel={()=>setEditMode(null)}
                     onSubmit={(selected)=>executePrepare(slot,selected,prep)}/>
                 )}
-                {opening && editMode==='fresh' && prep && (
+                {opening && editMode==='fresh' && (prep || repository.createFreshDishPreparation) && (
                   <FreshPicker submitting={busy} onCancel={()=>setEditMode(null)}
-                    onSubmit={(draft)=>run(()=>repository.addFreshDishItem!(prep.id,draft))}/>
+                    onSubmit={(draft)=>prep
+                      ? run(()=>repository.addFreshDishItem!(prep.id,draft))
+                      : run(()=>repository.createFreshDishPreparation!(selectedDate,slot,draft))}/>
                 )}
                 {opening && editMode==='complete' && prep && (
                   <MealCompletion preparation={prep} submitting={busy}

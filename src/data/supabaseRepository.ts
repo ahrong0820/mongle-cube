@@ -411,6 +411,29 @@ export class SupabaseCubeRepository implements CubeRepository {
     return mapDishPreparation(data as DishPreparationRow)
   }
 
+  async createFreshDishPreparation(
+    servingOn: string,
+    mealSlot: DishPreparation['mealSlot'],
+    draft: FreshDishDraft,
+  ) {
+    const { data, error } = await this.client.rpc('create_fresh_dish_preparation', {
+      p_serving_on: servingOn,
+      p_meal_slot: mealSlot,
+      p_recipe_id: draft.recipeId,
+      p_name: draft.name,
+      p_category: draft.category,
+      p_prepared_at: draft.preparedAt,
+      p_unit_amount: draft.unitAmount,
+      p_unit: draft.unit,
+      p_memo: draft.memo,
+      p_ingredients: draft.ingredientNames,
+      p_total_made: draft.totalMade,
+      p_to_freeze: draft.toFreeze,
+    })
+    if (error) throw toFriendlyWriteError(error, '오늘 만든 큐브를 식기에 담지 못했어요.')
+    return mapDishPreparation(data as DishPreparationRow)
+  }
+
   async addFrozenDishItems(preparationId: string, selections: FrozenDishSelection[]) {
     const { data, error } = await this.client.rpc('add_frozen_dish_items', {
       p_preparation_id: preparationId,
