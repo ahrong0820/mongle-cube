@@ -1,3 +1,5 @@
+import type { DishData } from '../data/dishPreparationTypes'
+import { DishOutcomeList, getDishOutcomePreparations } from './DishOutcomeList'
 import { useMemo } from 'react'
 import {
   formatHistoryDateLabel,
@@ -10,6 +12,7 @@ import { Icon } from './Icon'
 
 interface ConsumptionHistoryProps {
   records: ConsumptionRecord[]
+  dishData?: DishData
   loading: boolean
   onShowInventory: () => void
   onEditRecord: (record: ConsumptionRecord) => void
@@ -146,6 +149,7 @@ function getReactionSummary(records: ConsumptionRecord[]) {
 
 export function ConsumptionHistory({
   records,
+  dishData = { preparations: [], items: [] },
   loading,
   onShowInventory,
   onEditRecord,
@@ -153,6 +157,7 @@ export function ConsumptionHistory({
   onExportAiCsv,
 }: ConsumptionHistoryProps) {
   const groups = useMemo(() => groupRecords(records), [records])
+  const separateOutcomes = useMemo(() => getDishOutcomePreparations(dishData), [dishData])
   const today = useMemo(() => getTodaySummary(records), [records])
   const week = useMemo(() => getSevenDaySummary(records), [records])
   const reactionSummary = useMemo(() => getReactionSummary(records), [records])
@@ -182,7 +187,7 @@ export function ConsumptionHistory({
               ? `오늘 ${today.count}개${today.detail ? ` · ${today.detail}` : ''}`
               : '오늘은 아직 기록 전이에요.'}
           </p>
-          {records.length > 0 && onExportAiCsv && (
+          {(records.length > 0 || separateOutcomes.length > 0) && onExportAiCsv && (
             <button
               aria-label="AI 분석용 먹은 기록 CSV 다운로드"
               className="record-summary__export"
@@ -196,6 +201,10 @@ export function ConsumptionHistory({
         </div>
       </div>
 
+      <DishOutcomeList dishData={dishData} />
+      {separateOutcomes.length > 0 && (
+        <p className="dish-outcome-hint">일부 먹음·미섭취 ${separateOutcomes.length}끼니는 위에 별도로 표시했어요. 큐브별 섭취 수량을 추정하지 않아요.</p>
+      )}
       {records.length > 0 && (
         <div className="week-summary" aria-label="최근 7일 먹은 큐브 수">
           <div className="week-summary__heading">
