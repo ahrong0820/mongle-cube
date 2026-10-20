@@ -477,6 +477,15 @@ export default function App() {
     }
   }
 
+  const handleEditConsumptionRecord = (record: ConsumptionRecord) => {
+    if (record.preparationItemId) {
+      showToast('식기에 담아 먹은 기록은 식기에 담기에서 끼니 단위로 정정해 주세요.')
+      setActiveView('planner')
+      return
+    }
+    setRecordEditing(record)
+  }
+
   const handleSaveConsumptionRecord = async (update: ConsumptionRecordUpdate) => {
     if (!repository || !recordEditing) throw new Error('먹은 기록을 찾지 못했어요.')
     const updated = await repository.updateConsumptionRecord(recordEditing.id, update)
@@ -862,7 +871,7 @@ export default function App() {
             batches={batches}
             dishData={dishData}
             onEditProfile={() => setBabyProfileOpen(true)}
-            onEditRecord={setRecordEditing}
+            onEditRecord={handleEditConsumptionRecord}
             profile={babyProfile}
             recordIngredients={ingredientModel.recordIngredients}
             records={records}
@@ -883,7 +892,7 @@ export default function App() {
               loading={loading}
               onAdd={openMealPlanForm}
               onComplete={handleCompleteMealPlanItem}
-              onEditRecord={setRecordEditing}
+              onEditRecord={handleEditConsumptionRecord}
               onRemove={handleRemoveMealPlanItem}
               pendingIds={pendingPlanIds}
               records={records}
@@ -894,13 +903,18 @@ export default function App() {
             dishData={dishData}
             loading={loading}
             onExportAiCsv={handleExportConsumptionAiCsv}
-            onEditGroupTime={(groupRecords, label) =>
+            onEditGroupTime={(groupRecords, label) => {
+              const editable = groupRecords.filter((record) => !record.preparationItemId)
+              if (editable.length < 2) {
+                showToast('식기에 담아 먹은 기록은 끼니 단위로 정정해 주세요.')
+                return
+              }
               setBulkTimeTarget({
                 label,
-                recordIds: groupRecords.map((record) => record.id),
+                recordIds: editable.map((record) => record.id),
               })
-            }
-            onEditRecord={setRecordEditing}
+            }}
+            onEditRecord={handleEditConsumptionRecord}
             onShowInventory={() => setActiveView('inventory')}
             records={records}
           />
