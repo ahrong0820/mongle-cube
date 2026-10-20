@@ -3882,3 +3882,15 @@ a {
 .dish-planner__outcome {display:grid;gap:8px;padding:14px;font-size:12px}
 .dish-planner__outcome small {color:var(--muted);font-size:11px;line-height:1.6}
 .dish-planner__outcome button {justify-self:start;min-height:34px;padding:0 10px;border:1px solid #d7e2dc;border-radius:10px;color:var(--sage-dark);background:#f3faf5;font-size:11px}
+
+
+/* Separately recorded partially eaten or uneaten prepared meals */
+.dish-outcome-summary {display:grid;gap:10px;margin:12px 0;padding:14px;border:1px solid #e9e0d5;border-radius:17px;background:#fffaf4}
+.dish-outcome-summary h3 {margin:0;font-size:14px;color:var(--ink)}
+.dish-outcome-summary>p,.dish-outcome-summary__meal>p {margin:0;font-size:11px;color:var(--muted);line-height:1.55}
+.dish-outcome-summary__meal {display:grid;gap:7px;padding:12px;border:1px solid #e8e3da;border-radius:12px;background:white}
+.dish-outcome-summary__meal-header {display:flex;justify-content:space-between;gap:8px;align-items:center}
+.dish-outcome-summary__meal-header strong {font-size:12px}
+.dish-outcome-summary__meal-header b {font-size:11px;color:#856039}
+.dish-outcome-summary__meal>small {color:var(--muted);font-size:10px;line-height:1.5}
+.dish-outcome-hint {font-size:11px;line-height:1.55;color:var(--muted);padding:0 5px}
