@@ -35,10 +35,10 @@ describe('식기에 담기 원자적 기록 계약', () => {
 
   it('새/기존 RPC의 SQL 함수 구분자와 문장 종료를 검사한다', () => {
     const functionCount = (
-      migration.match(/(?:create or replace function|CREATE OR REPLACE FUNCTION)\\b/g) ?? []
+      migration.match(/(?:create or replace function|CREATE OR REPLACE FUNCTION)\b/g) ?? []
     ).length
     const terminatedFunctions = migration.match(
-      /(?:create or replace function|CREATE OR REPLACE FUNCTION)\\b[\\s\\S]*?(?:\\$\\$|\\$function\\$);/g,
+      /(?:create or replace function|CREATE OR REPLACE FUNCTION)\b[\s\S]*?(?:\$\$|\$function\$);/g,
     ) ?? []
 
     expect(functionCount).toBe(9)
