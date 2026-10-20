@@ -1,3 +1,4 @@
+import type { DishData } from '../data/dishPreparationTypes'
 import { formatHistoryTime, getSeoulDateKey } from './date'
 import type { ConsumptionRecord, FoodReaction, Ingredient } from '../types'
 
@@ -19,6 +20,10 @@ const headers = [
   '실제재료',
   '반응',
   '반응메모',
+  '기록종류',
+  '준비한음식_실제섭취량과다를수있음',
+  '한끼실제섭취량',
+  '한끼섭취단위',
 ] as const
 
 function protectSpreadsheetFormula(value: string) {
@@ -52,6 +57,7 @@ function sortChronologically(records: ConsumptionRecord[]) {
 export function buildConsumptionAiCsv(
   records: ConsumptionRecord[],
   recordIngredients: Record<string, Ingredient[]>,
+  dishData: DishData = { preparations: [], items: [] },
 ) {
   const rows = sortChronologically(records).map((record) => {
     const ingredientNames = ingredientNamesForRecord(record, recordIngredients)
@@ -66,9 +72,42 @@ export function buildConsumptionAiCsv(
       ingredientNames.join(' | '),
       record.reaction ? reactionLabels[record.reaction] : '미기록',
       record.reactionNote,
-    ]
+      '큐브별 섭취',
+      '',
+      '',
+      '',
+    ] as Array<string | number | null | undefined>
   })
 
+  const separateMeals = dishData.preparations.filter((prep) =>
+    prep.status === 'completed' &&
+    (prep.outcome === 'partial' || prep.outcome === 'none') &&
+    prep.consumedAt,
+  )
+  for (const prep of separateMeals) {
+    const preparedItems = dishData.items.filter((item) =>
+      item.preparationId === prep.id &&
+      item.disposition !== 'corrected' && item.disposition !== 'discarded',
+    )
+    rows.push([
+      getSeoulDateKey(prep.consumedAt!),
+      formatHistoryTime(prep.consumedAt!),
+      prep.consumedAt,
+      '',
+      '',
+      '',
+      '',
+      '',
+      prep.reaction ? reactionLabels[prep.reaction] : '미기록',
+      prep.reactionNote,
+      prep.outcome === 'partial' ? '한 끼 일부 섭취' : '한 끼 미섭취',
+      preparedItems.map((item) => `${item.cubeName} ${item.preparedQuantity}개`).join(' | '),
+      prep.outcome === 'none' ? 0 : prep.actualConsumedAmount,
+      prep.outcome === 'none' ? 'g' : prep.actualConsumedUnit,
+    ])
+  }
+
+  rows.sort((a, b) => String(a[2]).localeCompare(String(b[2])))
   return [
     headers.map(csvCell).join(','),
     ...rows.map((row) => row.map(csvCell).join(',')),
@@ -83,12 +122,15 @@ export function downloadConsumptionAiCsv(
   records: ConsumptionRecord[],
   recordIngredients: Record<string, Ingredient[]>,
   now = new Date(),
+  dishData: DishData = { preparations: [], items: [] },
 ) {
-  if (records.length === 0) {
+  if (records.length === 0 && !dishData.preparations.some((prep) =>
+    prep.status === 'completed' && (prep.outcome === 'partial' || prep.outcome === 'none')
+  )) {
     throw new Error('다운로드할 먹은 기록이 없어요.')
   }
 
-  const csv = buildConsumptionAiCsv(records, recordIngredients)
+  const csv = buildConsumptionAiCsv(records, recordIngredients, dishData)
   const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
