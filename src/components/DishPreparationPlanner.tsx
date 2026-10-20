@@ -157,6 +157,7 @@ function MealCompletion({
   const [outcome,setOutcome]=useState<CompleteDishDraft['outcome']>('all')
   const [consumedAt,setConsumedAt]=useState(()=>toSeoulDateTimeInput(new Date().toISOString()))
   const [actualAmount,setActualAmount]=useState('')
+  const [actualUnit,setActualUnit]=useState<'g'|'mL'>('g')
   const [reaction,setReaction]=useState<FoodReaction|null>(null)
   const [note,setNote]=useState('')
   const [error,setError]=useState('')
@@ -178,7 +179,7 @@ function MealCompletion({
       await onComplete({
         consumedAt:iso, outcome,
         actualAmount:outcome==='none'?0:actualAmount.trim()?Number(actualAmount):null,
-        actualUnit:outcome==='none'?'g':actualAmount.trim()?'g':null,
+        actualUnit:outcome==='none'?'g':actualAmount.trim()?actualUnit:null,
         reaction:outcome==='none'?null:reaction,note,requestId,
       })
     } catch(e) {setError(e instanceof Error?e.message:'완료하지 못했어요.')}
@@ -199,8 +200,13 @@ function MealCompletion({
       )}
       {outcome!=='none' && (
         <>
-          <label>실제로 먹은 양 (g · 모르면 비워도 돼요)
+          <label>실제로 먹은 양 (모르면 비워도 돼요)
             <input aria-label="실제로 먹은 양" type="number" min="0" step="0.1" disabled={submitting} value={actualAmount} onChange={e=>setActualAmount(e.target.value)}/>
+          </label>
+          <label>실제 섭취량 단위
+            <select aria-label="실제 섭취량 단위" disabled={submitting} value={actualUnit} onChange={e=>setActualUnit(e.target.value as 'g'|'mL')}>
+              <option value="g">g</option><option value="mL">mL</option>
+            </select>
           </label>
           <label>반응
             <select aria-label="한 끼 반응" disabled={submitting} value={reaction??''} onChange={e=>setReaction(e.target.value?e.target.value as FoodReaction:null)}>
@@ -305,7 +311,7 @@ export function DishPreparationPlanner({
         {SLOTS.map(slot=>{
           const prep=dishData.preparations.find(p=>p.servingOn===selectedDate && p.mealSlot===slot && p.status!=='cancelled')
           const allItems=prep?itemsByPreparation.get(prep.id)??[]:[]
-          const activeItems=allItems.filter(item=>item.disposition==='ready' || item.disposition==='consumed' || item.disposition==='unused')
+          const activeItems=allItems.filter(item=>item.disposition==='ready' || item.disposition==='consumed' || item.disposition==='offered_partial' || item.disposition==='unused')
           const quantity=activeItems.reduce((total,item)=>total+item.preparedQuantity,0)
           const opening=editingSlot===slot
           return (
