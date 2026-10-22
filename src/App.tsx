@@ -14,7 +14,8 @@ import { IngredientSetupSheet } from './components/IngredientSetupSheet'
 import { MealPlanFormSheet } from './components/MealPlanFormSheet'
 import { MealPlanner } from './components/MealPlanner'
 import { DishPreparationPlanner } from './components/DishPreparationPlanner'
-import type { DishData } from './data/dishPreparationTypes'
+import { DishMealTimeSheet } from './components/DishMealTimeSheet'
+import type { DishData, DishPreparation } from './data/dishPreparationTypes'
 import { Toast } from './components/Toast'
 import { connectRepository } from './data/connectRepository'
 import {
@@ -103,6 +104,7 @@ export default function App() {
   const [mealPlanInitialSlot, setMealPlanInitialSlot] = useState<MealSlot | undefined>()
   const [recordEditing, setRecordEditing] = useState<ConsumptionRecord | null>(null)
   const [bulkTimeTarget, setBulkTimeTarget] = useState<BulkTimeTarget | null>(null)
+  const [dishTimeTarget, setDishTimeTarget] = useState<DishPreparation | null>(null)
   const [babyProfileOpen, setBabyProfileOpen] = useState(false)
   const [stockFilter, setStockFilter] = useState<StockFilter>('all')
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
@@ -479,8 +481,15 @@ export default function App() {
 
   const handleEditConsumptionRecord = (record: ConsumptionRecord) => {
     if (record.preparationItemId) {
-      showToast('식기에 담아 먹은 기록은 식기에 담기에서 끼니 단위로 정정해 주세요.')
-      setActiveView('planner')
+      const item = dishData.items.find((item) => item.id === record.preparationItemId)
+      const preparation = dishData.preparations.find((prep) =>
+        prep.id === item?.preparationId && prep.status === 'completed'
+      )
+      if (preparation) {
+        setDishTimeTarget(preparation)
+      } else {
+        showToast('해당 식기의 먹은 기록을 다시 불러와 주세요.', 'error')
+      }
       return
     }
     setRecordEditing(record)
@@ -507,6 +516,15 @@ export default function App() {
     }
   }
 
+  const handleSaveDishTime = async (preparation: DishPreparation, time: string) => {
+    if (!repository?.updateDishConsumedTime || !preparation.consumedAt) {
+      throw new Error('식기 끼니의 시간 수정 기능을 사용할 수 없어요.')
+    }
+    await repository.updateDishConsumedTime(preparation.id, preparation.consumedAt, time)
+    await loadData()
+    showToast('한 끼의 먹은 시간을 변경했어요. 재고와 섭취량은 그대로예요.')
+  }
+
   const handleSaveConsumptionRecordsTime = async (
     recordIds: string[],
     time: string,
@@ -514,16 +532,46 @@ export default function App() {
     if (!repository || !bulkTimeTarget) {
       throw new Error('일괄 수정할 먹은 기록을 찾지 못했어요.')
     }
-
     const availableIds = new Set(bulkTimeTarget.recordIds)
     if (
-      recordIds.length < 2 ||
+      recordIds.length < 1 ||
       new Set(recordIds).size !== recordIds.length ||
       recordIds.some((id) => !availableIds.has(id))
     ) {
       throw new Error('같이 수정할 먹은 기록을 다시 선택해 주세요.')
     }
 
+    const byId = new Map(records.map((record) => [record.id, record]))
+    const itemToPreparation = new Map(dishData.items.map((item) => [item.id, item.preparationId]))
+    const selected = recordIds.map((id) => byId.get(id))
+    if (selected.some((record) => !record)) throw new Error('기록을 새로 불러와 다시 선택해 주세요.')
+
+    const preparedIds = [...new Set(selected.map((record) =>
+      record?.preparationItemId ? itemToPreparation.get(record.preparationItemId) : null
+    ).filter((id): id is string => Boolean(id)))]
+    if (selected.some((record) => record?.preparationItemId && !itemToPreparation.has(record.preparationItemId))) {
+      throw new Error('식기 준비 항목을 찾을 수 없어요. 다시 불러와 주세요.')
+    }
+
+    if (preparedIds.length > 0) {
+      if (preparedIds.length !== 1 || selected.some((record) => !record?.preparationItemId)) {
+        throw new Error('식기에 담아 먹은 끼니는 일반 기록과 섞지 말고 한 끼씩 수정해 주세요.')
+      }
+      const prep = dishData.preparations.find((p) => p.id === preparedIds[0] && p.status === 'completed')
+      if (!prep || prep.outcome !== 'all') throw new Error('식기 끼니를 다시 불러와 주세요.')
+      const allMealIds = records.filter((record) =>
+        record.preparationItemId && itemToPreparation.get(record.preparationItemId) === prep.id
+      ).map((record) => record.id)
+      if (allMealIds.length !== recordIds.length || allMealIds.some((id) => !recordIds.includes(id))) {
+        throw new Error('같은 식기 끼니의 모든 큐브를 선택해 주세요.')
+      }
+      await handleSaveDishTime(prep, time)
+      return
+    }
+
+    if (recordIds.length < 2) {
+      throw new Error('일반 먹은 기록은 2개 이상 선택해 주세요.')
+    }
     const updated = await repository.updateConsumptionRecordsTime(recordIds, time)
     const updatedById = new Map(updated.map((record) => [record.id, record]))
     setRecords((current) =>
@@ -904,16 +952,12 @@ export default function App() {
             loading={loading}
             onExportAiCsv={handleExportConsumptionAiCsv}
             onEditGroupTime={(groupRecords, label) => {
-              const editable = groupRecords.filter((record) => !record.preparationItemId)
-              if (editable.length < 2) {
-                showToast('식기에 담아 먹은 기록은 끼니 단위로 정정해 주세요.')
-                return
-              }
               setBulkTimeTarget({
                 label,
-                recordIds: editable.map((record) => record.id),
+                recordIds: groupRecords.map((record) => record.id),
               })
             }}
+            onEditDishTime={setDishTimeTarget}
             onEditRecord={handleEditConsumptionRecord}
             onShowInventory={() => setActiveView('inventory')}
             records={records}
@@ -1036,8 +1080,17 @@ export default function App() {
         record={recordEditing}
       />
 
+      <DishMealTimeSheet
+        preparation={dishTimeTarget}
+        onClose={() => setDishTimeTarget(null)}
+        onSave={(time) => {
+          if (!dishTimeTarget) throw new Error('수정할 끼니를 찾지 못했어요.')
+          return handleSaveDishTime(dishTimeTarget, time)
+        }}
+      />
       <BulkConsumptionTimeSheet
         dateLabel={bulkTimeTarget?.label ?? ''}
+        dishData={dishData}
         onClose={() => setBulkTimeTarget(null)}
         onSave={handleSaveConsumptionRecordsTime}
         open={Boolean(bulkTimeTarget)}

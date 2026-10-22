@@ -19,9 +19,11 @@ export function getDishOutcomePreparations(data: DishData, date?: string) {
 export function DishOutcomeList({
   dishData,
   date,
+  onEditDishTime,
 }: {
   dishData: DishData
   date?: string
+  onEditDishTime?: (preparation: DishPreparation) => void
 }) {
   const outcomes = getDishOutcomePreparations(dishData, date)
   if (!outcomes.length) return null
@@ -58,7 +60,12 @@ export function DishOutcomeList({
                 ? '미측정'
                 : `${prep.actualConsumedAmount}${prep.actualConsumedUnit ?? ''}`}</p>
             {prep.reactionNote && <p>메모: {prep.reactionNote}</p>}
-            <small>준비한 음식 목록과 실제 섭취량은 별개예요. 수정은 식기에 담기에서 해 주세요.</small>
+            {onEditDishTime && (
+              <button type="button" aria-label={`${slotNames[prep.mealSlot]} 먹은 시간 수정`} onClick={() => onEditDishTime(prep)}>
+                먹은 시간 수정
+              </button>
+            )}
+            <small>준비한 음식 목록과 실제 섭취량은 별개예요. 섭취 상태 정정은 식기에 담기에서 해 주세요.</small>
           </article>
         )
       })}

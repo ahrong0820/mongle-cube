@@ -404,6 +404,16 @@ export class SupabaseCubeRepository implements CubeRepository {
     return mapDishPreparation(data as DishPreparationRow)
   }
 
+  async updateDishConsumedTime(preparationId: string, expectedConsumedAt: string, time: string) {
+    const { data, error } = await this.client.rpc('update_dish_consumed_time', {
+      p_preparation_id: preparationId,
+      p_expected_consumed_at: expectedConsumedAt,
+      p_time: time,
+    })
+    if (error) throw toFriendlyWriteError(error, '끼니 먹은 시간을 수정하지 못했어요.')
+    return mapDishPreparation(data as DishPreparationRow)
+  }
+
   async createDishPreparation(
     servingOn: string,
     mealSlot: DishPreparation['mealSlot'],
