@@ -51,13 +51,67 @@ describe('먹은 기록의 식기 끼니 시간 수정', () => {
         dateLabel="어제" onClose={vi.fn()} onSave={onSave}
       />,
     )
-    await user.click(screen.getByRole('button', { name: /첫 번째 끼니 · 12:00 · 2개.*끼니 선택/ }))
+    const preparedMeal = screen.getByRole('region', { name: '식기에 담아 완료한 끼니 선택' })
+    expect(within(preparedMeal).getByText('12:00')).toBeInTheDocument()
+    expect(within(preparedMeal).getByText('첫 번째 끼니 · 2개')).toBeInTheDocument()
+    expect(within(preparedMeal).getByText('쌀죽')).toBeInTheDocument()
+    expect(within(preparedMeal).getByText('당근')).toBeInTheDocument()
+    expect(within(preparedMeal).getAllByText('12:00 · 10g')).toHaveLength(2)
+    await user.click(within(preparedMeal).getByRole('button', { name: '이 끼니 선택' }))
+    expect(within(preparedMeal).getByLabelText('첫 번째 끼니 쌀죽 1번째 · 끼니 전체 선택')).toBeChecked()
+    expect(within(preparedMeal).getByLabelText('첫 번째 끼니 당근 2번째 · 끼니 전체 선택')).toBeChecked()
     expect(screen.getByText(/식기 한 끼 2개 선택됨/)).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('선택한 기록에 적용할 시간'), {
       target: { value: '12:25' },
     })
     await user.click(screen.getByRole('button', { name: '선택한 끼니 2개 변경' }))
     expect(onSave).toHaveBeenCalledWith(records.map((record) => record.id), '12:25')
+  })
+
+  it('큐브 6개를 일반 기록과 같은 목록으로 보여주고 하나를 눌러도 끼니 전체를 선택·해제한다', async () => {
+    const user = userEvent.setup()
+    const sixRecords = Array.from({ length: 6 }, (_, index) => ({
+      ...records[0],
+      id: `30000000-0000-4000-8000-0000000000${String(index + 1).padStart(2, '0')}`,
+      preparationItemId: `50000000-0000-4000-8000-0000000000${String(index + 1).padStart(2, '0')}`,
+      cubeName: `큐브 ${index + 1}`,
+    }))
+    const sixItems = sixRecords.map((record, index) => ({
+      ...dishData.items[0],
+      id: record.preparationItemId!,
+      cubeName: record.cubeName,
+      batchId: `20000000-0000-4000-8000-0000000000${String(index + 1).padStart(2, '0')}`,
+    }))
+    const onSave = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <BulkConsumptionTimeSheet
+        open records={sixRecords}
+        dishData={{ ...dishData, items: sixItems }}
+        dateLabel="어제" onClose={vi.fn()} onSave={onSave}
+      />,
+    )
+
+    const mealList = screen.getByRole('region', { name: '식기에 담아 완료한 끼니 선택' })
+    expect(within(mealList).getAllByRole('checkbox')).toHaveLength(6)
+    expect(within(mealList).getByText('첫 번째 끼니 · 6개')).toBeInTheDocument()
+    expect(within(mealList).getByText('큐브 1')).toBeInTheDocument()
+    expect(within(mealList).getByText('큐브 6')).toBeInTheDocument()
+
+    await user.click(within(mealList).getByLabelText('첫 번째 끼니 큐브 3 3번째 · 끼니 전체 선택'))
+    expect(within(mealList).getAllByRole('checkbox').every((input) => (input as HTMLInputElement).checked)).toBe(true)
+    expect(within(mealList).getByRole('button', { name: '이 끼니 해제' })).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(within(mealList).getByLabelText('첫 번째 끼니 큐브 3 3번째 · 끼니 전체 선택'))
+    expect(within(mealList).getAllByRole('checkbox').every((input) => !(input as HTMLInputElement).checked)).toBe(true)
+    expect(screen.getByRole('button', { name: '기록을 선택해 주세요' })).toBeDisabled()
+
+    await user.click(within(mealList).getByRole('button', { name: '이 끼니 선택' }))
+    fireEvent.change(screen.getByLabelText('선택한 기록에 적용할 시간'), {
+      target: { value: '12:25' },
+    })
+    await user.click(screen.getByRole('button', { name: '선택한 끼니 6개 변경' }))
+    expect(onSave).toHaveBeenCalledWith(sixRecords.map((record) => record.id), '12:25')
   })
 
   it('먹은 기록의 날짜 카드에 식기 기록 시간 수정 버튼을 노출한다', () => {
