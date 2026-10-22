@@ -395,6 +395,15 @@ export class SupabaseCubeRepository implements CubeRepository {
     }
   }
 
+  async correctDishServingDate(preparationId: string, newServingOn: string) {
+    const { data, error } = await this.client.rpc('correct_dish_serving_date', {
+      p_preparation_id: preparationId,
+      p_new_serving_on: newServingOn,
+    })
+    if (error) throw toFriendlyWriteError(error, '식기 날짜를 변경하지 못했어요.')
+    return mapDishPreparation(data as DishPreparationRow)
+  }
+
   async createDishPreparation(
     servingOn: string,
     mealSlot: DishPreparation['mealSlot'],
