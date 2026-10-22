@@ -5,11 +5,13 @@ import {
   getSeoulDateKey,
 } from '../lib/date'
 import type { ConsumptionRecord } from '../types'
+import type { DishData, DishPreparation } from '../data/dishPreparationTypes'
 import { Icon } from './Icon'
 
 interface BulkConsumptionTimeSheetProps {
   open: boolean
   records: ConsumptionRecord[]
+  dishData?: DishData
   dateLabel: string
   onClose: () => void
   onSave: (recordIds: string[], time: string) => Promise<void>
@@ -37,6 +39,7 @@ function groupByCurrentTime(records: ConsumptionRecord[]): TimeGroup[] {
 export function BulkConsumptionTimeSheet({
   open,
   records,
+  dishData = { preparations: [], items: [] },
   dateLabel,
   onClose,
   onSave,
@@ -47,7 +50,27 @@ export function BulkConsumptionTimeSheet({
   const [time, setTime] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const timeGroups = useMemo(() => groupByCurrentTime(records), [records])
+  const preparedMeals = useMemo(() => {
+    const preparationByItem = new Map(dishData.items.map((item) => [item.id, item.preparationId]))
+    const recordsByPreparation = new Map<string, ConsumptionRecord[]>()
+    for (const record of records) {
+      if (!record.preparationItemId) continue
+      const prepId = preparationByItem.get(record.preparationItemId)
+      if (!prepId) continue
+      recordsByPreparation.set(prepId, [...(recordsByPreparation.get(prepId) ?? []), record])
+    }
+    return dishData.preparations
+      .filter((prep) => prep.status === 'completed' && prep.outcome === 'all' && recordsByPreparation.has(prep.id))
+      .map((prep) => ({ preparation: prep, records: recordsByPreparation.get(prep.id)! }))
+  }, [dishData, records])
+  const ordinaryRecords = useMemo(
+    () => records.filter((record) => !record.preparationItemId),
+    [records],
+  )
+  const timeGroups = useMemo(() => groupByCurrentTime(ordinaryRecords), [ordinaryRecords])
+  const selectedPreparedMeal = preparedMeals.find(({ records: mealRecords }) =>
+    mealRecords.some((record) => selectedIds.has(record.id)),
+  )
   const selectedRecords = useMemo(
     () => records.filter((record) => selectedIds.has(record.id)),
     [records, selectedIds],
@@ -71,9 +94,18 @@ export function BulkConsumptionTimeSheet({
     if (!open && dialogRef.current?.open) dialogRef.current.close()
   }, [open])
 
+  const togglePreparedMeal = (mealRecords: ConsumptionRecord[]) => {
+    setSelectedIds((current) =>
+      mealRecords.every((record) => current.has(record.id))
+        ? new Set()
+        : new Set(mealRecords.map((record) => record.id)),
+    )
+    setError('')
+  }
+
   const toggleRecord = (recordId: string) => {
     setSelectedIds((current) => {
-      const next = new Set(current)
+      const next = selectedPreparedMeal ? new Set<string>() : new Set(current)
       if (next.has(recordId)) next.delete(recordId)
       else next.add(recordId)
       return next
@@ -83,7 +115,7 @@ export function BulkConsumptionTimeSheet({
 
   const toggleTimeGroup = (group: TimeGroup) => {
     setSelectedIds((current) => {
-      const next = new Set(current)
+      const next = selectedPreparedMeal ? new Set<string>() : new Set(current)
       const allSelected = group.records.every((record) => next.has(record.id))
 
       for (const record of group.records) {
@@ -99,8 +131,8 @@ export function BulkConsumptionTimeSheet({
     event.preventDefault()
     if (saving || records.length === 0) return
 
-    if (selectedRecords.length < 2) {
-      setError('같이 바꿀 먹은 기록을 2개 이상 선택해 주세요.')
+    if (!selectedPreparedMeal && selectedRecords.length < 2) {
+      setError('일반 먹은 기록은 2개 이상 선택하거나, 식기 끼니 하나를 선택해 주세요.')
       return
     }
 
@@ -186,9 +218,34 @@ export function BulkConsumptionTimeSheet({
             <strong>
               {dateLabel} · 전체 {records.length}개
             </strong>
-            <span>오전·오후 기록 중 같이 바꿀 것만 골라 주세요.</span>
+            <span>일반 기록은 여러 개 선택하고, 식기에 담아 등록한 기록은 끼니 전체를 선택해 시간을 바꿀 수 있어요.</span>
           </div>
 
+          {preparedMeals.length > 0 && (
+            <section aria-label="식기에 담아 완료한 끼니 선택" className="bulk-consumption-time-sheet__records">
+              <strong>식기에 담아 먹은 끼니</strong>
+              <p>한 끼에 포함된 큐브는 모두 같은 시간으로 변경됩니다. 끼니 하나씩 수정해 주세요.</p>
+              {preparedMeals.map(({ preparation, records: mealRecords }) => {
+                const selected = mealRecords.every((record) => selectedIds.has(record.id))
+                const slotNames: Record<DishPreparation['mealSlot'], string> = {
+                  breakfast: '첫 번째 끼니', lunch: '두 번째 끼니',
+                  dinner: '세 번째 끼니', snack: '간식',
+                }
+                return (
+                  <button
+                    type="button"
+                    key={preparation.id}
+                    aria-pressed={selected}
+                    disabled={saving}
+                    onClick={() => togglePreparedMeal(mealRecords)}
+                  >
+                    {slotNames[preparation.mealSlot]} · {formatHistoryTime(preparation.consumedAt!)} · {mealRecords.length}개
+                    {selected ? ' · 선택됨' : ' · 끼니 선택'}
+                  </button>
+                )
+              })}
+            </section>
+          )}
           <section
             aria-label="시간을 같이 바꿀 먹은 기록 선택"
             className="bulk-consumption-time-sheet__records"
@@ -277,8 +334,10 @@ export function BulkConsumptionTimeSheet({
             </div>
             <small>
               {selectedRecords.length > 0
-                ? `${selectedRecords.length}개 선택됨 · 날짜와 반응은 그대로예요.`
-                : '2개 이상 선택하면 한 번에 시간을 바꿀 수 있어요.'}
+                ? selectedPreparedMeal
+                  ? `식기 한 끼 ${selectedRecords.length}개 선택됨 · 날짜·반응·재고는 그대로예요.`
+                  : `${selectedRecords.length}개 선택됨 · 날짜와 반응은 그대로예요.`
+                : '일반 기록 2개 이상 또는 식기 끼니 하나를 선택해 주세요.'}
             </small>
           </label>
 
@@ -295,14 +354,16 @@ export function BulkConsumptionTimeSheet({
           </button>
           <button
             className="primary-button sheet__save"
-            disabled={saving || selectedRecords.length < 2 || !time}
+            disabled={saving || (!selectedPreparedMeal && selectedRecords.length < 2) || !time}
             type="submit"
           >
             {saving ? <span className="button-spinner" /> : <Icon name="check" size={20} />}
             {saving
               ? '변경 중'
-              : selectedRecords.length >= 2
-                ? `선택한 ${selectedRecords.length}개 변경`
+              : selectedPreparedMeal
+                ? `선택한 끼니 ${selectedRecords.length}개 변경`
+                : selectedRecords.length >= 2
+                  ? `선택한 ${selectedRecords.length}개 변경`
                 : '기록을 선택해 주세요'}
           </button>
         </footer>
