@@ -305,6 +305,8 @@ export function ConsumptionHistory({
                                 ? reactionMeta[representative.reaction].label
                                 : '미기록'
                             } 수정`}
+                            disabled={Boolean(representative.preparationItemId)}
+                            title={representative.preparationItemId ? '식기에서 등록한 반응은 식기에 담기에서 정정하세요.' : undefined}
                             className={`reaction-row__reaction ${
                               representative.reaction
                                 ? `is-${representative.reaction}`
