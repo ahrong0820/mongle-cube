@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type { CubeRepository } from '../data/repository'
 import type { CubeBatch } from '../types'
 import { DishPreparationPlanner } from './DishPreparationPlanner'
+import { getSeoulDateKey } from '../lib/date'
 
 const batch: CubeBatch = {
   id:'batch-rice', householdId:'household-1', name:'쌀죽',
@@ -15,7 +16,7 @@ const batch: CubeBatch = {
 }
 
 describe('식기에 담기 탭',()=>{
-  it('날짜와 첫·둘째·셋째 끼니를 보여 주고 실제 담기 확정 시에만 저장한다',async()=>{
+  it('다음 날 첫·둘째·셋째 끼니를 보여 주고 실제 담기 확정 시에만 저장한다',async()=>{
     const user=userEvent.setup()
     const createDishPreparation=vi.fn().mockResolvedValue({})
     render(
@@ -27,10 +28,11 @@ describe('식기에 담기 탭',()=>{
         onChanged={vi.fn().mockResolvedValue(undefined)}
       />
     )
-    expect(screen.getByText('첫 번째 끼니')).toBeInTheDocument()
-    expect(screen.getByText('두 번째 끼니')).toBeInTheDocument()
-    expect(screen.getByText('세 번째 끼니')).toBeInTheDocument()
-    const mealCard=screen.getByText('첫 번째 끼니').closest('article')!
+    const tomorrowSection=screen.getByRole('region',{name:'다음 날 식기 미리 담기'})
+    expect(within(tomorrowSection).getByText('첫 번째 끼니')).toBeInTheDocument()
+    expect(within(tomorrowSection).getByText('두 번째 끼니')).toBeInTheDocument()
+    expect(within(tomorrowSection).getByText('세 번째 끼니')).toBeInTheDocument()
+    const mealCard=within(screen.getByRole('region',{name:'다음 날 식기 미리 담기'})).getByText('첫 번째 끼니').closest('article')!
     await user.click(within(mealCard).getByRole('button',{name:'+ 냉동 큐브 담기'}))
     expect(createDishPreparation).not.toHaveBeenCalled()
     const input=within(mealCard).getByLabelText('쌀죽 식기에 담을 개수')
@@ -38,11 +40,11 @@ describe('식기에 담기 탭',()=>{
     await user.type(input,'2')
     await user.click(within(mealCard).getByRole('button',{name:'식기에 담았어요 · 2개'}))
     expect(createDishPreparation).toHaveBeenCalledWith(
-      expect.any(String),'breakfast',[{batchId:'batch-rice',quantity:2}]
+      getSeoulDateKey(new Date(Date.now()+24*60*60*1000)),'breakfast',[{batchId:'batch-rice',quantity:2}]
     )
   })
 
-  it('전날 냉동 준비한 끼니에 당일 만든 큐브를 추가할 수 있다',async()=>{
+  it('다음 날 식기에 미리 담은 냉동 큐브에 오늘 만든 큐브도 추가할 수 있다',async()=>{
     const user=userEvent.setup()
     const addFreshDishItem=vi.fn().mockResolvedValue({})
     render(
@@ -50,7 +52,7 @@ describe('식기에 담기 탭',()=>{
         batches={[batch]}
         dishData={{
           preparations:[{
-            id:'prep-1',householdId:'household-1',servingOn:new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'}),
+            id:'prep-1',householdId:'household-1',servingOn:getSeoulDateKey(new Date(Date.now()+24*60*60*1000)),
             mealSlot:'breakfast',status:'prepared',preparedAt:new Date().toISOString(),
             consumedAt:null,completedAt:null,outcome:null,actualConsumedAmount:null,
             actualConsumedUnit:null,reaction:null,reactionNote:'',updatedAt:new Date().toISOString(),
@@ -67,7 +69,7 @@ describe('식기에 담기 탭',()=>{
         onChanged={vi.fn().mockResolvedValue(undefined)}
       />
     )
-    const mealCard=screen.getByText('첫 번째 끼니').closest('article')!
+    const mealCard=within(screen.getByRole('region',{name:'다음 날 식기 미리 담기'})).getByText('첫 번째 끼니').closest('article')!
     expect(within(mealCard).getByText('쌀죽 2개')).toBeInTheDocument()
     await user.click(within(mealCard).getByRole('button',{name:'+ 오늘 만든 큐브'}))
     await user.type(within(mealCard).getByLabelText('바로 만든 큐브 이름'),'당근')
