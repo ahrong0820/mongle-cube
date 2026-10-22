@@ -231,17 +231,53 @@ export function BulkConsumptionTimeSheet({
                   breakfast: '첫 번째 끼니', lunch: '두 번째 끼니',
                   dinner: '세 번째 끼니', snack: '간식',
                 }
+                const slotName = slotNames[preparation.mealSlot]
+                const mealTime = formatHistoryTime(preparation.consumedAt!)
                 return (
-                  <button
-                    type="button"
-                    key={preparation.id}
-                    aria-pressed={selected}
-                    disabled={saving}
-                    onClick={() => togglePreparedMeal(mealRecords)}
-                  >
-                    {slotNames[preparation.mealSlot]} · {formatHistoryTime(preparation.consumedAt!)} · {mealRecords.length}개
-                    {selected ? ' · 선택됨' : ' · 끼니 선택'}
-                  </button>
+                  <div className="bulk-time-group" key={preparation.id}>
+                    <div className="bulk-time-group__header">
+                      <div>
+                        <strong>{mealTime}</strong>
+                        <span>{slotName} · {mealRecords.length}개</span>
+                      </div>
+                      <button
+                        aria-pressed={selected}
+                        disabled={saving}
+                        onClick={() => togglePreparedMeal(mealRecords)}
+                        type="button"
+                      >
+                        {selected ? '이 끼니 해제' : '이 끼니 선택'}
+                      </button>
+                    </div>
+                    <div className="bulk-time-group__records">
+                      {mealRecords.map((record, index) => {
+                        const unitText = record.unitAmount != null && record.unit
+                          ? ` · ${record.unitAmount}${record.unit}`
+                          : ''
+                        return (
+                          <label
+                            className={`bulk-time-record ${selected ? 'is-selected' : ''}`}
+                            key={record.id}
+                          >
+                            <input
+                              aria-label={`${slotName} ${record.cubeName} ${index + 1}번째 · 끼니 전체 선택`}
+                              checked={selected}
+                              disabled={saving}
+                              onChange={() => togglePreparedMeal(mealRecords)}
+                              type="checkbox"
+                            />
+                            <span className="bulk-time-record__check" aria-hidden="true">
+                              {selected && <Icon name="check" size={14} />}
+                            </span>
+                            <span className="bulk-time-record__copy">
+                              <strong>{record.cubeName}</strong>
+                              <small>{mealTime}{unitText}</small>
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
                 )
               })}
             </section>
