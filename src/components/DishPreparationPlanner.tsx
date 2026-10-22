@@ -242,8 +242,7 @@ interface Props {
 export function DishPreparationPlanner({
   batches, dishData=EMPTY_DISH, repository, loading, onChanged,
 }: Props) {
-  const [selectedDate,setSelectedDate]=useState(()=>getSeoulDateKey(new Date()))
-  const [editingSlot,setEditingSlot]=useState<MealSlot|null>(null)
+  const [editingKey,setEditingKey]=useState<string|null>(null)
   const [editMode,setEditMode]=useState<'frozen'|'fresh'|'complete'|null>(null)
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState('')
@@ -260,7 +259,7 @@ export function DishPreparationPlanner({
     setBusy(true);setError('')
     try {
       await operation(); await onChanged()
-      setEditMode(null);setEditingSlot(null)
+      setEditMode(null);setEditingKey(null)
     } catch(e){
       const message=e instanceof Error?e.message:'요청을 처리하지 못했어요.'
       setError(message)
@@ -268,17 +267,19 @@ export function DishPreparationPlanner({
     } finally {setBusy(false)}
   }
 
-  const setPanel=(slot:MealSlot,mode:'frozen'|'fresh'|'complete')=>{
-    setEditingSlot(slot);setEditMode(mode);setError('')
+  const setPanel=(key:string,mode:'frozen'|'fresh'|'complete')=>{
+    setEditingKey(key);setEditMode(mode);setError('')
   }
 
-  const executePrepare=async(slot:MealSlot,selected:FrozenDishSelection[],prep: DishPreparation|undefined)=>{
+  const executePrepare=async(
+    slot:MealSlot, servingOn:string, selected:FrozenDishSelection[], prep: DishPreparation|undefined,
+  )=>{
     if(prep) {
       if(!repository.addFrozenDishItems)throw Error('현재 연결에서 지원하지 않는 기능입니다.')
       await run(()=>repository.addFrozenDishItems!(prep.id,selected))
     } else {
       if(!repository.createDishPreparation)throw Error('현재 연결에서 지원하지 않는 기능입니다.')
-      await run(()=>repository.createDishPreparation!(selectedDate,slot,selected))
+      await run(()=>repository.createDishPreparation!(servingOn,slot,selected))
     }
   }
 
@@ -293,7 +294,14 @@ export function DishPreparationPlanner({
   }
 
   const today=getSeoulDateKey(new Date())
+  const tomorrow=getSeoulDateKey(new Date(Date.now()+24*60*60*1000))
   const yesterday=getSeoulDateKey(new Date(Date.now()-24*60*60*1000))
+  const waitingPreparations=dishData.preparations
+    .filter(prep=>prep.status==='prepared' && prep.servingOn<=today)
+    .sort((a,b)=>b.servingOn.localeCompare(a.servingOn) || SLOTS.indexOf(a.mealSlot)-SLOTS.indexOf(b.mealSlot))
+  const futureLegacyPreparations=dishData.preparations
+    .filter(prep=>prep.status==='prepared' && prep.servingOn>tomorrow)
+    .sort((a,b)=>a.servingOn.localeCompare(b.servingOn) || SLOTS.indexOf(a.mealSlot)-SLOTS.indexOf(b.mealSlot))
   const incorrectDatePreparations=dishData.preparations.filter(prep=>
     prep.status==='prepared' &&
     prep.servingOn===yesterday &&
@@ -304,29 +312,122 @@ export function DishPreparationPlanner({
     if(!window.confirm('어제 식사 날짜로 저장된 이 식기를 오늘 식사로 옮길까요? 냉동실 재고나 준비한 큐브는 변경되지 않아요.'))return
     try{
       await run(()=>repository.correctDishServingDate!(prep.id,today))
-      setSelectedDate(today)
     }catch{/* error displayed above the meals */}
   }
+  const renderDishCard=(
+    slot:MealSlot, servingOn:string, prep: DishPreparation|undefined,
+    mode:'waiting'|'prepare'|'legacy',
+  )=>{
+    const allItems=prep?itemsByPreparation.get(prep.id)??[]:[]
+    const activeItems=allItems.filter(item=>
+      item.disposition==='ready' || item.disposition==='consumed' ||
+      item.disposition==='offered_partial' || item.disposition==='unused',
+    )
+    const quantity=activeItems.reduce((total,item)=>total+item.preparedQuantity,0)
+    const cardKey=mode==='prepare'?`prepare:${slot}`:prep?.id??`empty:${slot}`
+    const opening=editingKey===cardKey
+    const canAdd=mode==='prepare'
+    const canComplete=mode==='waiting' && prep?.status==='prepared' && quantity>0
+    return (
+      <article className="dish-planner__slot" key={cardKey}>
+        <header>
+          <div>
+            <strong>{SLOT_LABELS[slot]}</strong>
+            <small>{prep?.status==='completed'
+              ? prep.outcome==='all'?'식사 완료':prep.outcome==='partial'?'일부 먹음':'먹지 않음'
+              :prep
+                ? mode==='prepare'?'미리 담음 · 냉장 해동 중':'먹은 기록 대기'
+                :'아직 식기에 담지 않음'}</small>
+          </div>
+          <b>{quantity}개</b>
+        </header>
+        {prep && <small className="dish-planner__prepared-at">
+          식사 예정일 {prep.servingOn} · 담은 시각 {toSeoulDateTimeInput(prep.preparedAt).replace('T',' ')}
+        </small>}
+        {activeItems.length>0 && (
+          <ul className="dish-planner__items">
+            {activeItems.map(item=>(
+              <li key={item.id}>
+                <span>
+                  <b>{item.cubeName} {item.preparedQuantity}개</b>
+                  <small>{item.sourceKind==='frozen'?'냉동실에서 담음':'직접 제조'} · 1개 {item.unitAmount??'—'}{item.unit??''}</small>
+                </span>
+                {prep?.status==='prepared' && item.disposition==='ready' && (
+                  <span className="dish-planner__item-actions">
+                    <button type="button" disabled={busy} onClick={()=>void removeItem(item,'corrected')}>선택 실수</button>
+                    <button type="button" disabled={busy} onClick={()=>void removeItem(item,'discarded')}>폐기</button>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {prep?.status==='completed' && (
+          <div className="dish-planner__outcome">
+            {prep.outcome==='partial'
+              ? `일부 먹음 · 실제 섭취량 ${prep.actualConsumedAmount??'미측정'}${prep.actualConsumedUnit??''}`
+              :prep.outcome==='none'?'먹이지 않았어요':'담아둔 큐브를 전부 먹었어요'}
+            {prep.outcome==='partial' && <small>재료별 섭취량을 추정하지 않았어요.</small>}
+            <button type="button" disabled={busy} onClick={()=>{
+              if(!repository.cancelDishCompletion||!window.confirm('완료를 취소해 준비 상태로 되돌릴까요? 이미 꺼낸 큐브는 냉동실 재고로 복원되지 않아요.'))return
+              void run(()=>repository.cancelDishCompletion!(prep.id)).catch(()=>{})
+            }}>완료 기록 정정</button>
+          </div>
+        )}
+        {prep?.status!=='completed' && <>
+          <div className="dish-planner__controls">
+            {canAdd && (
+              <button type="button" onClick={()=>setPanel(cardKey,'frozen')} disabled={busy}>+ 냉동 큐브 담기</button>
+            )}
+            {canAdd && (prep || repository.createFreshDishPreparation) && (
+              <button type="button" onClick={()=>setPanel(cardKey,'fresh')} disabled={busy}>+ 오늘 만든 큐브</button>
+            )}
+            {canComplete && (
+              <button type="button" onClick={()=>setPanel(cardKey,'complete')} disabled={busy}>먹은 기록 완료</button>
+            )}
+            {prep && quantity===0 && (
+              <button type="button" disabled={busy} onClick={()=>{
+                if(!repository.cancelEmptyDishPreparation)return
+                void run(()=>repository.cancelEmptyDishPreparation!(prep.id)).catch(()=>{})
+              }}>빈 식기 취소</button>
+            )}
+          </div>
+          {canAdd && opening && editMode==='frozen' && (
+            <FrozenPicker batches={batches} servingOn={servingOn} submitting={busy}
+              onCancel={()=>setEditMode(null)}
+              onSubmit={selected=>executePrepare(slot,servingOn,selected,prep)}/>
+          )}
+          {canAdd && opening && editMode==='fresh' && (prep || repository.createFreshDishPreparation) && (
+            <FreshPicker submitting={busy} onCancel={()=>setEditMode(null)}
+              onSubmit={draft=>prep
+                ? run(()=>repository.addFreshDishItem!(prep.id,draft))
+                : run(()=>repository.createFreshDishPreparation!(servingOn,slot,draft))}/>
+          )}
+          {canComplete && opening && editMode==='complete' && (
+            <MealCompletion preparation={prep} submitting={busy}
+              onCancel={()=>setEditMode(null)}
+              onComplete={draft=>run(()=>repository.completeDishPreparation!(prep.id,draft))}/>
+          )}
+        </>}
+      </article>
+    )
+  }
+
   return (
     <section className="dish-planner" aria-label="식기에 담기">
       <header className="dish-planner__heading">
-        <span>미리 담아두고 다음 날 한 번에 기록해요</span>
+        <span>전날 미리 식기에 담고, 다음 날 먹은 기록을 남겨요</span>
         <h1>식기에 담기</h1>
       </header>
-      <div className="dish-planner__date">
-        <button type="button" onClick={()=>setSelectedDate(today)} aria-pressed={selectedDate===today}>오늘</button>
-        <button type="button" onClick={()=>{
-          const next=new Date(`${today}T00:00:00Z`);next.setUTCDate(next.getUTCDate()+1)
-          setSelectedDate(next.toISOString().slice(0,10))
-        }} aria-pressed={selectedDate!==today}>내일</button>
-        <input aria-label="식기에 담을 날짜" type="date" value={selectedDate}
-          onChange={e=>setSelectedDate(e.target.value)}/>
-      </div>
-      <p className="dish-planner__explain">실제로 냉동실에서 꺼내 식기에 담을 때 확정해 주세요. 준비했다는 이유만으로 먹은 기록은 생기지 않아요.</p>
-      {(selectedDate===today || selectedDate===yesterday) && incorrectDatePreparations.length>0 && (
+      <p className="dish-planner__explain">
+        이 화면은 다음 날 먹일 냉동 큐브를 미리 꺼내 냉장 해동할 때 사용해요.
+        당일 바로 데워 먹였다면 냉동실의 큐브에서 ‘먹었어요’를 눌러 기록하세요.
+        미리 담았다고 먹은 기록이 자동 등록되지는 않아요.
+      </p>
+      {incorrectDatePreparations.length>0 && (
         <section className="dish-planner__date-correction" aria-label="식기 날짜 정정">
           <strong>어제 날짜로 저장된 미완료 식기가 있어요.</strong>
-          <p>어젯밤 오늘 먹일 큐브를 담았는데 식사 날짜를 어제로 저장했다면, 해당 끼니만 오늘로 정정하세요. 재고는 다시 차감하지 않아요. 어제 실제 먹였다면 정정하지 말고 어제 섭취 시각을 입력하세요.</p>
+          <p>어젯밤 오늘 먹일 큐브를 담았는데 어제 식사로 잘못 저장했다면, 해당 끼니만 오늘로 정정하세요. 재고는 다시 차감하지 않아요. 어제 실제 먹였다면 정정하지 말고 어제 섭취 시각을 입력하세요.</p>
           {incorrectDatePreparations.map(prep=>(
             <div className="dish-actions" key={prep.id}>
               <span>{SLOT_LABELS[prep.mealSlot]} · {prep.servingOn}</span>
@@ -338,80 +439,40 @@ export function DishPreparationPlanner({
       )}
       {loading && <p>식기에 담은 기록을 불러오는 중이에요.</p>}
       {error && <p role="alert" className="dish-planner__error">{error}</p>}
-      <div className="dish-planner__slots">
-        {SLOTS.map(slot=>{
-          const prep=dishData.preparations.find(p=>p.servingOn===selectedDate && p.mealSlot===slot && p.status!=='cancelled')
-          const allItems=prep?itemsByPreparation.get(prep.id)??[]:[]
-          const activeItems=allItems.filter(item=>item.disposition==='ready' || item.disposition==='consumed' || item.disposition==='offered_partial' || item.disposition==='unused')
-          const quantity=activeItems.reduce((total,item)=>total+item.preparedQuantity,0)
-          const opening=editingSlot===slot
-          return (
-            <article className="dish-planner__slot" key={slot}>
-              <header>
-                <div><strong>{SLOT_LABELS[slot]}</strong><small>{prep?.status==='completed'
-                  ? prep.outcome==='all'?'식사 완료':prep.outcome==='partial'?'일부 먹음':'먹지 않음'
-                  :prep?'식기에 담음 · 냉장 해동 중':'아직 식기에 담지 않음'}</small></div>
-                <b>{quantity}개</b>
-              </header>
-              {prep && <small className="dish-planner__prepared-at">담은 시각 {toSeoulDateTimeInput(prep.preparedAt).replace('T',' ')}</small>}
-              {activeItems.length>0 && (
-                <ul className="dish-planner__items">
-                  {activeItems.map(item=>(
-                    <li key={item.id}>
-                      <span><b>{item.cubeName} {item.preparedQuantity}개</b><small>{item.sourceKind==='frozen'?'냉동실에서 담음':'당일 제조'} · 1개 {item.unitAmount??'—'}{item.unit??''}</small></span>
-                      {prep?.status==='prepared' && item.disposition==='ready' && (
-                        <span className="dish-planner__item-actions">
-                          <button type="button" disabled={busy} onClick={()=>void removeItem(item,'corrected')}>선택 실수</button>
-                          <button type="button" disabled={busy} onClick={()=>void removeItem(item,'discarded')}>폐기</button>
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {prep?.status==='completed' && (
-                <div className="dish-planner__outcome">
-                  {prep.outcome==='partial'
-                    ? `일부 먹음 · 실제 섭취량 ${prep.actualConsumedAmount??'미측정'}${prep.actualConsumedUnit??''}`
-                    :prep.outcome==='none'?'먹이지 않았어요':'담아둔 큐브를 전부 먹었어요'}
-                  {prep.outcome==='partial' && <small>재료별 섭취량은 추정하지 않았어요. 이 기록은 식기에 담기에서 확인할 수 있습니다.</small>}
-                  <button type="button" disabled={busy} onClick={()=>{
-                    if(!repository.cancelDishCompletion||!window.confirm('완료를 취소해 준비 상태로 되돌릴까요? 이미 꺼낸 큐브는 냉동실 재고로 복원되지 않아요.'))return
-                    void run(()=>repository.cancelDishCompletion!(prep.id)).catch(()=>{})
-                  }}>완료 기록 정정</button>
-                </div>
-              )}
-              {prep?.status!=='completed' && <>
-                <div className="dish-planner__controls">
-                  <button type="button" onClick={()=>setPanel(slot,'frozen')} disabled={busy}>+ 냉동 큐브 담기</button>
-                  {(prep || repository.createFreshDishPreparation) && <button type="button" onClick={()=>setPanel(slot,'fresh')} disabled={busy}>+ 오늘 만든 큐브</button>}
-                  {prep && quantity>0 && selectedDate<=today && <button type="button" onClick={()=>setPanel(slot,'complete')} disabled={busy}>먹은 기록 완료</button>}
-                  {prep && quantity===0 && <button type="button" disabled={busy} onClick={()=>{
-                    if(!repository.cancelEmptyDishPreparation)return
-                    void run(()=>repository.cancelEmptyDishPreparation!(prep.id)).catch(()=>{})
-                  }}>빈 식기 취소</button>}
-                </div>
-                {opening && editMode==='frozen' && (
-                  <FrozenPicker batches={batches} servingOn={selectedDate} submitting={busy}
-                    onCancel={()=>setEditMode(null)}
-                    onSubmit={(selected)=>executePrepare(slot,selected,prep)}/>
-                )}
-                {opening && editMode==='fresh' && (prep || repository.createFreshDishPreparation) && (
-                  <FreshPicker submitting={busy} onCancel={()=>setEditMode(null)}
-                    onSubmit={(draft)=>prep
-                      ? run(()=>repository.addFreshDishItem!(prep.id,draft))
-                      : run(()=>repository.createFreshDishPreparation!(selectedDate,slot,draft))}/>
-                )}
-                {opening && editMode==='complete' && prep && (
-                  <MealCompletion preparation={prep} submitting={busy}
-                    onCancel={()=>setEditMode(null)}
-                    onComplete={(draft)=>run(()=>repository.completeDishPreparation!(prep.id,draft))}/>
-                )}
-              </>}
-            </article>
-          )
-        })}
-      </div>
+      <section className="dish-planner__section" aria-label="먹은 기록을 기다리는 식기">
+        <header className="dish-planner__section-heading">
+          <h2>먹은 기록 기다리는 식기</h2>
+          <small>식사 예정일이 지났거나 오늘인 미완료 식기 · {waitingPreparations.length}끼니</small>
+        </header>
+        {waitingPreparations.length===0
+          ? <p className="dish-planner__empty">아직 먹은 기록을 기다리는 식기가 없어요.</p>
+          : <div className="dish-planner__slots">
+            {waitingPreparations.map(prep=>renderDishCard(prep.mealSlot,prep.servingOn,prep,'waiting'))}
+          </div>}
+      </section>
+      <section className="dish-planner__section" aria-label="다음 날 식기 미리 담기">
+        <header className="dish-planner__section-heading">
+          <h2>다음 날 먹일 식기 미리 담기</h2>
+          <small>식사 예정일 {tomorrow} · 하루치만 준비해요</small>
+        </header>
+        <div className="dish-planner__slots">
+          {SLOTS.map(slot=>{
+            const prep=dishData.preparations.find(p=>p.servingOn===tomorrow && p.mealSlot===slot && p.status!=='cancelled')
+            return renderDishCard(slot,tomorrow,prep,'prepare')
+          })}
+        </div>
+      </section>
+      {futureLegacyPreparations.length>0 && (
+        <section className="dish-planner__section" aria-label="이전에 등록된 다른 날짜 식기">
+          <header className="dish-planner__section-heading">
+            <h2>기존에 등록된 다른 날짜 식기</h2>
+            <small>기존 기록을 보존하기 위해 표시해요. 새로 여러 날치를 준비하는 기능은 제공하지 않아요.</small>
+          </header>
+          <div className="dish-planner__slots">
+            {futureLegacyPreparations.map(prep=>renderDishCard(prep.mealSlot,prep.servingOn,prep,'legacy'))}
+          </div>
+        </section>
+      )}
     </section>
   )
 }
