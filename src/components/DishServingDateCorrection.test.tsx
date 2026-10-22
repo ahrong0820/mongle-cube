@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { CubeRepository } from '../data/repository'
 import type { DishData } from '../data/dishPreparationTypes'
@@ -66,8 +66,8 @@ describe('어젯밤 식기 날짜 정정', () => {
         onChanged={vi.fn().mockResolvedValue(undefined)}
       />,
     )
-    fireEvent.change(screen.getByLabelText('식기에 담을 날짜'), { target: { value: yesterday } })
-    const card = screen.getByText('첫 번째 끼니').closest('article')!
+    const waitingSection = screen.getByRole('region', { name: '먹은 기록을 기다리는 식기' })
+    const card = within(waitingSection).getByText('첫 번째 끼니').closest('article')!
     await user.click(within(card).getByRole('button', { name: '먹은 기록 완료' }))
     const timeInput = within(card).getByLabelText('실제로 먹인 시간') as HTMLInputElement
     expect(timeInput.value).toBe('')
