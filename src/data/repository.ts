@@ -34,6 +34,7 @@ export interface CubeRepository {
   completeDishPreparation?(preparationId: string, draft: CompleteDishDraft): Promise<DishPreparation>
   cancelDishCompletion?(preparationId: string): Promise<DishPreparation>
   cancelEmptyDishPreparation?(preparationId: string): Promise<DishPreparation>
+  correctDishServingDate?(preparationId: string, newServingOn: string): Promise<DishPreparation>
   listDisposals?(): Promise<CubeDisposal[]>
   getIngredientModel?(): Promise<IngredientModel>
   configureLegacyRecipe?(recipeId: string, ingredientNames: string[]): Promise<void>

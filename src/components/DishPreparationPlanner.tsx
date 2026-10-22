@@ -156,7 +156,7 @@ function MealCompletion({
   onComplete: (draft: CompleteDishDraft) => Promise<void>
 }) {
   const [outcome,setOutcome]=useState<CompleteDishDraft['outcome']>('all')
-  const [consumedAt,setConsumedAt]=useState(()=>toSeoulDateTimeInput(new Date().toISOString()))
+  const [consumedAt,setConsumedAt]=useState(()=>preparation.servingOn===getSeoulDateKey(new Date()) ? toSeoulDateTimeInput(new Date()) : '')
   const [actualAmount,setActualAmount]=useState('')
   const [actualUnit,setActualUnit]=useState<'g'|'mL'>('g')
   const [reaction,setReaction]=useState<FoodReaction|null>(null)
@@ -188,7 +188,10 @@ function MealCompletion({
   return (
     <div className="dish-picker dish-completion">
       <strong>한 끼 먹은 기록 완료</strong>
-      <label>실제로 먹인 시간<input aria-label="실제로 먹인 시간" type="datetime-local" disabled={submitting} value={consumedAt} onChange={e=>setConsumedAt(e.target.value)}/></label>
+      {preparation.servingOn!==getSeoulDateKey(new Date()) && (
+        <p className="dish-completion__notice">이 식기의 식사 날짜는 {preparation.servingOn}입니다. 이 날짜에 실제로 먹였다면 정확한 섭취 시각을 선택해 주세요. 오늘 먹였다면 위의 식사 날짜 정정 안내를 이용해 주세요.</p>
+      )}
+      <label>실제로 먹인 시간<input aria-label="실제로 먹인 시간" type="datetime-local" required disabled={submitting} value={consumedAt} onChange={e=>setConsumedAt(e.target.value)}/></label>
       <label>먹은 정도
         <select aria-label="먹은 정도" disabled={submitting} value={outcome} onChange={e=>setOutcome(e.target.value as CompleteDishDraft['outcome'])}>
           <option value="all">전부 먹음</option>
@@ -290,6 +293,20 @@ export function DishPreparationPlanner({
   }
 
   const today=getSeoulDateKey(new Date())
+  const yesterday=getSeoulDateKey(new Date(Date.now()-24*60*60*1000))
+  const incorrectDatePreparations=dishData.preparations.filter(prep=>
+    prep.status==='prepared' &&
+    prep.servingOn===yesterday &&
+    getSeoulDateKey(prep.preparedAt)===yesterday
+  )
+  const correctDate=async(prep:DishPreparation)=>{
+    if(!repository.correctDishServingDate)return
+    if(!window.confirm('어제 식사 날짜로 저장된 이 식기를 오늘 식사로 옮길까요? 냉동실 재고나 준비한 큐브는 변경되지 않아요.'))return
+    try{
+      await run(()=>repository.correctDishServingDate!(prep.id,today))
+      setSelectedDate(today)
+    }catch{/* error displayed above the meals */}
+  }
   return (
     <section className="dish-planner" aria-label="식기에 담기">
       <header className="dish-planner__heading">
@@ -306,6 +323,19 @@ export function DishPreparationPlanner({
           onChange={e=>setSelectedDate(e.target.value)}/>
       </div>
       <p className="dish-planner__explain">실제로 냉동실에서 꺼내 식기에 담을 때 확정해 주세요. 준비했다는 이유만으로 먹은 기록은 생기지 않아요.</p>
+      {(selectedDate===today || selectedDate===yesterday) && incorrectDatePreparations.length>0 && (
+        <section className="dish-planner__date-correction" aria-label="식기 날짜 정정">
+          <strong>어제 날짜로 저장된 미완료 식기가 있어요.</strong>
+          <p>어젯밤 오늘 먹일 큐브를 담았는데 식사 날짜를 어제로 저장했다면, 해당 끼니만 오늘로 정정하세요. 재고는 다시 차감하지 않아요. 어제 실제 먹였다면 정정하지 말고 어제 섭취 시각을 입력하세요.</p>
+          {incorrectDatePreparations.map(prep=>(
+            <div className="dish-actions" key={prep.id}>
+              <span>{SLOT_LABELS[prep.mealSlot]} · {prep.servingOn}</span>
+              <button type="button" disabled={busy || !repository.correctDishServingDate}
+                onClick={()=>void correctDate(prep)}>오늘 식사로 날짜 정정</button>
+            </div>
+          ))}
+        </section>
+      )}
       {loading && <p>식기에 담은 기록을 불러오는 중이에요.</p>}
       {error && <p role="alert" className="dish-planner__error">{error}</p>}
       <div className="dish-planner__slots">
@@ -355,7 +385,7 @@ export function DishPreparationPlanner({
                 <div className="dish-planner__controls">
                   <button type="button" onClick={()=>setPanel(slot,'frozen')} disabled={busy}>+ 냉동 큐브 담기</button>
                   {(prep || repository.createFreshDishPreparation) && <button type="button" onClick={()=>setPanel(slot,'fresh')} disabled={busy}>+ 오늘 만든 큐브</button>}
-                  {prep && quantity>0 && <button type="button" onClick={()=>setPanel(slot,'complete')} disabled={busy}>먹은 기록 완료</button>}
+                  {prep && quantity>0 && selectedDate<=today && <button type="button" onClick={()=>setPanel(slot,'complete')} disabled={busy}>먹은 기록 완료</button>}
                   {prep && quantity===0 && <button type="button" disabled={busy} onClick={()=>{
                     if(!repository.cancelEmptyDishPreparation)return
                     void run(()=>repository.cancelEmptyDishPreparation!(prep.id)).catch(()=>{})
