@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
+import { getSeoulDateKey } from '../lib/date'
 import userEvent from '@testing-library/user-event'
 import type { CubeRepository } from '../data/repository'
 import { DishPreparationPlanner } from './DishPreparationPlanner'
@@ -18,7 +19,8 @@ describe('당일 제조만으로 첫 식기 준비', () => {
         onChanged={onChanged}
       />
     )
-    const card = screen.getByText('첫 번째 끼니').closest('article')!
+    const card = within(screen.getByRole('region', { name: '다음 날 식기 미리 담기' }))
+      .getByText('첫 번째 끼니').closest('article')!
     await user.click(within(card).getByRole('button', { name: '+ 오늘 만든 큐브' }))
     await user.type(within(card).getByLabelText('바로 만든 큐브 이름'), '당근')
     await user.type(within(card).getByLabelText('바로 만든 큐브 들어간 재료'), '당근')
@@ -28,7 +30,7 @@ describe('당일 제조만으로 첫 식기 준비', () => {
     await user.type(within(card).getByLabelText('냉동 보관 개수'), '5')
     await user.click(within(card).getByRole('button', { name: '만든 큐브 식기에 추가' }))
     expect(createFreshDishPreparation).toHaveBeenCalledWith(
-      expect.any(String),
+      getSeoulDateKey(new Date(Date.now() + 24 * 60 * 60 * 1000)),
       'breakfast',
       expect.objectContaining({
         name: '당근',
@@ -50,7 +52,8 @@ describe('당일 제조만으로 첫 식기 준비', () => {
         onChanged={vi.fn().mockResolvedValue(undefined)}
       />
     )
-    const card = screen.getByText('첫 번째 끼니').closest('article')!
+    const card = within(screen.getByRole('region', { name: '다음 날 식기 미리 담기' }))
+      .getByText('첫 번째 끼니').closest('article')!
     expect(within(card).queryByRole('button', { name: '+ 오늘 만든 큐브' })).not.toBeInTheDocument()
   })
 })
