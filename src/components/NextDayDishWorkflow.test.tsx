@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import type { CubeRepository } from '../data/repository'
 import type { DishData, DishPreparation, DishPreparationItem } from '../data/dishPreparationTypes'
 import type { CubeBatch } from '../types'
-import { fromSeoulDateTimeInput, getSeoulDateKey } from '../lib/date'
+import { getSeoulDateKey } from '../lib/date'
 import { DishPreparationPlanner } from './DishPreparationPlanner'
 
 const today = getSeoulDateKey(new Date())
