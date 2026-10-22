@@ -1,4 +1,4 @@
-import type { DishData } from '../data/dishPreparationTypes'
+import type { DishData, DishPreparation } from '../data/dishPreparationTypes'
 import { DishOutcomeList, getDishOutcomePreparations } from './DishOutcomeList'
 import { useMemo } from 'react'
 import {
@@ -17,6 +17,7 @@ interface ConsumptionHistoryProps {
   onShowInventory: () => void
   onEditRecord: (record: ConsumptionRecord) => void
   onEditGroupTime: (records: ConsumptionRecord[], label: string) => void
+  onEditDishTime?: (preparation: DishPreparation) => void
   onExportAiCsv?: () => void
 }
 
@@ -154,6 +155,7 @@ export function ConsumptionHistory({
   onShowInventory,
   onEditRecord,
   onEditGroupTime,
+  onEditDishTime,
   onExportAiCsv,
 }: ConsumptionHistoryProps) {
   const groups = useMemo(() => groupRecords(records), [records])
@@ -201,7 +203,7 @@ export function ConsumptionHistory({
         </div>
       </div>
 
-      <DishOutcomeList dishData={dishData} />
+      <DishOutcomeList dishData={dishData} onEditDishTime={onEditDishTime} />
       {separateOutcomes.length > 0 && (
         <p className="dish-outcome-hint">일부 먹음·미섭취 {separateOutcomes.length}끼니는 위에 별도로 표시했어요. 큐브별 섭취 수량을 추정하지 않아요.</p>
       )}
@@ -248,7 +250,7 @@ export function ConsumptionHistory({
               <header>
                 <h2>{group.label}</h2>
                 <div className="day-log-card__meta">
-                  {group.records.length > 1 && (
+                  {(group.records.length > 1 || group.records.some((record) => record.preparationItemId)) && (
                     <button
                       aria-label={`${group.label} 먹은 기록 ${group.records.length}개 선택 시간 수정`}
                       className="day-log-card__bulk-time"
@@ -326,13 +328,13 @@ export function ConsumptionHistory({
                             )}
                           </button>
                           <button
-                            aria-label={`${representative.cubeName} ${displayGroup.time} 먹은 기록 수정 또는 삭제`}
+                            aria-label={`${representative.cubeName} ${displayGroup.time} ${representative.preparationItemId ? '끼니 시간 수정' : '먹은 기록 수정 또는 삭제'}`}
                             className="reaction-row__edit"
                             onClick={() => onEditRecord(representative)}
                             type="button"
                           >
                             <Icon name="edit" size={14} />
-                            수정·삭제
+                            {representative.preparationItemId ? '끼니 시간 수정' : '수정·삭제'}
                           </button>
                           {representative.reactionNote && <p>{representative.reactionNote}</p>}
                         </div>
@@ -393,11 +395,11 @@ export function ConsumptionHistory({
                                       {record.reactionNote && <small>{record.reactionNote}</small>}
                                     </div>
                                     <button
-                                      aria-label={`${displayGroup.cubeName} ${displayGroup.time} ${index + 1}번째 먹은 기록 수정 또는 삭제`}
+                                      aria-label={`${displayGroup.cubeName} ${displayGroup.time} ${index + 1}번째 ${record.preparationItemId ? '끼니 시간 수정' : '먹은 기록 수정 또는 삭제'}`}
                                       onClick={() => onEditRecord(record)}
                                       type="button"
                                     >
-                                      수정·삭제
+                                      {record.preparationItemId ? '끼니 시간 수정' : '수정·삭제'}
                                     </button>
                                   </div>
                                 )
