@@ -106,6 +106,38 @@ describe('전날 식기 미리 담기 전용 화면', () => {
     }))
   })
 
+  it('각 끼니 카드에 개수와 총 g을 따로 표시하고 폐기된 큐브는 합계에서 제외한다', () => {
+    const next = preparation('tomorrow-total', tomorrow)
+    const items: DishPreparationItem[] = [
+      { ...item('pepper', next.id), cubeName: '노란파프리카', unitAmount: 10, preparedQuantity: 1 },
+      { ...item('porridge', next.id), cubeName: '고당양', unitAmount: 120, preparedQuantity: 1 },
+      { ...item('chicken', next.id), cubeName: '닭고기', unitAmount: 20, preparedQuantity: 1 },
+      { ...item('discarded', next.id), cubeName: '폐기한 큐브', unitAmount: 90, disposition: 'discarded' },
+    ]
+    renderPlanner({ preparations: [next], items })
+    const tomorrowSection = screen.getByRole('region', { name: '다음 날 식기 미리 담기' })
+    const mealCard = within(tomorrowSection).getByText('첫 번째 끼니').closest('article')!
+    const header = mealCard.querySelector('header')!
+    expect(within(header).getByText('3개')).toBeInTheDocument()
+    expect(within(header).getByText('총 150g')).toBeInTheDocument()
+    expect(within(mealCard).queryByText('폐기한 큐브 2개')).not.toBeInTheDocument()
+  })
+
+  it('용량이 비어 있는 큐브는 정확한 끼니 총량으로 오인하지 않도록 안내한다', () => {
+    const current = preparation('unknown-amount', today)
+    renderPlanner({
+      preparations: [current],
+      items: [
+        { ...item('known', current.id), preparedQuantity: 2, unitAmount: 15 },
+        { ...item('unknown', current.id), preparedQuantity: 1, unitAmount: null },
+      ],
+    })
+    const waiting = screen.getByRole('region', { name: '먹은 기록을 기다리는 식기' })
+    const card = within(waiting).getByText('첫 번째 끼니').closest('article')!
+    expect(within(card).getByText('3개')).toBeInTheDocument()
+    expect(within(card).getByText('확인된 30g · 용량 미입력 1개')).toBeInTheDocument()
+  })
+
   it('이전에 다른 미래 날짜로 저장한 기록은 삭제하지 않고 별도로 표시한다', () => {
     const legacy = preparation('old-legacy', dayAfterTomorrow)
     renderPlanner({ preparations: [legacy], items: [item('legacy-item',legacy.id)] })

@@ -9,7 +9,7 @@ import { getSeoulDateKey } from '../lib/date'
 const batch: CubeBatch = {
   id:'batch-rice', householdId:'household-1', name:'쌀죽',
   category:'base', preparedAt:'2026-10-19T01:00:00.000Z',
-  expiresAt:'2026-11-02T01:00:00.000Z',
+  expiresAt:new Date(Date.now()+7*24*60*60*1000).toISOString(),
   quantity:8,unitAmount:30,unit:'g',memo:'',
   createdAt:'2026-10-19T01:00:00.000Z',
   updatedAt:'2026-10-19T01:00:00.000Z',
