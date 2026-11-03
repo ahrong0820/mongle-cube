@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { fromSeoulDateTimeInput, getSeoulDateKey, toSeoulDateTimeInput } from '../lib/date'
+import { getDishTotalAmountLabel } from '../lib/dishTotalAmount'
 import type { CubeBatch, FoodReaction, MealSlot } from '../types'
 import type {
   CompleteDishDraft, DishData, DishPreparation, DishPreparationItem,
@@ -324,6 +325,7 @@ export function DishPreparationPlanner({
       item.disposition==='offered_partial' || item.disposition==='unused',
     )
     const quantity=activeItems.reduce((total,item)=>total+item.preparedQuantity,0)
+    const totalAmountLabel=getDishTotalAmountLabel(activeItems)
     const cardKey=mode==='prepare'?`prepare:${slot}`:prep?.id??`empty:${slot}`
     const opening=editingKey===cardKey
     const canAdd=mode==='prepare'
@@ -339,7 +341,10 @@ export function DishPreparationPlanner({
                 ? mode==='prepare'?'미리 담음 · 냉장 해동 중':'먹은 기록 대기'
                 :'아직 식기에 담지 않음'}</small>
           </div>
-          <b>{quantity}개</b>
+          <div className="dish-planner__quantity">
+            <b>{quantity}개</b>
+            {totalAmountLabel && <small>{totalAmountLabel}</small>}
+          </div>
         </header>
         {prep && <small className="dish-planner__prepared-at">
           식사 예정일 {prep.servingOn} · 담은 시각 {toSeoulDateTimeInput(prep.preparedAt).replace('T',' ')}
