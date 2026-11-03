@@ -3862,7 +3862,9 @@ a {
 .dish-planner__slot>header>div {display:grid;gap:5px}
 .dish-planner__slot>header strong {font-size:16px}
 .dish-planner__slot>header small {color:var(--muted);font-size:11px}
-.dish-planner__slot>header>b {color:var(--sage-dark);font-size:14px}
+.dish-planner__quantity {display:grid;justify-items:end;align-content:center;flex:0 1 auto;max-width:58%;gap:4px;text-align:right}
+.dish-planner__quantity b {color:var(--sage-dark);font-size:15px;white-space:nowrap}
+.dish-planner__slot>header .dish-planner__quantity small {color:var(--sage-dark);font-size:11px;font-weight:780;line-height:1.4;overflow-wrap:anywhere}
 .dish-planner__prepared-at {display:block;margin:12px 15px 0;color:var(--muted);font-size:10px}
 .dish-planner__items {padding:2px 14px;margin:0;list-style:none}
 .dish-planner__items li {display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 0;border-bottom:1px solid #eee9e3}
