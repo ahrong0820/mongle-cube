@@ -1,6 +1,7 @@
 import type { CompleteDishDraft, DishData, DishPreparation, DishPreparationItem, FreshDishDraft, FrozenDishSelection } from './dishPreparationTypes'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { getSeoulDateKey } from '../lib/date'
+import { fetchAllHistoryPages } from './historyPagination'
 import type {
   BabyProfile,
   ConsumptionRecord,
@@ -354,15 +355,17 @@ export class SupabaseCubeRepository implements CubeRepository {
   }
 
   async listConsumptionRecords() {
-    const { data, error } = await this.client
-      .from('consumption_records')
-      .select('*')
-      .eq('household_id', this.householdId)
-      .is('cancelled_at', null)
-      .order('consumed_at', { ascending: false })
-
-    if (error) throw error
-    return (data as ConsumptionRow[]).map(mapConsumptionRow)
+    const rows = await fetchAllHistoryPages<ConsumptionRow>((from, to) =>
+      this.client
+        .from('consumption_records')
+        .select('*')
+        .eq('household_id', this.householdId)
+        .is('cancelled_at', null)
+        .order('consumed_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to),
+    )
+    return rows.map(mapConsumptionRow)
   }
 
   async listMealPlanItems() {
@@ -523,7 +526,7 @@ export class SupabaseCubeRepository implements CubeRepository {
   }
 
   async getIngredientModel(): Promise<IngredientModel> {
-    const [ingredientResult, recipeResult, recipeLinkResult, batchLinkResult, recordLinkResult] =
+    const [ingredientResult, recipeResult, recipeLinkResult, batchLinkResult, recordLinks] =
       await Promise.all([
         this.client
           .from('ingredients')
@@ -544,10 +547,15 @@ export class SupabaseCubeRepository implements CubeRepository {
           .from('cube_batch_ingredients')
           .select('batch_id, ingredient_id, sort_order')
           .eq('household_id', this.householdId),
-        this.client
-          .from('consumption_record_ingredients')
-          .select('record_id, ingredient_id')
-          .eq('household_id', this.householdId),
+        fetchAllHistoryPages<RecordIngredientRow>((from, to) =>
+          this.client
+            .from('consumption_record_ingredients')
+            .select('record_id, ingredient_id')
+            .eq('household_id', this.householdId)
+            .order('record_id', { ascending: true })
+            .order('ingredient_id', { ascending: true })
+            .range(from, to),
+        ),
       ])
 
     for (const result of [
@@ -555,7 +563,6 @@ export class SupabaseCubeRepository implements CubeRepository {
       recipeResult,
       recipeLinkResult,
       batchLinkResult,
-      recordLinkResult,
     ]) {
       if (result.error) throw result.error
     }
@@ -575,7 +582,7 @@ export class SupabaseCubeRepository implements CubeRepository {
       ingredientsById,
     )
     const recordIngredients = groupIngredientLinks(
-      (recordLinkResult.data ?? []) as RecordIngredientRow[],
+      recordLinks,
       (row) => row.record_id,
       ingredientsById,
     )
