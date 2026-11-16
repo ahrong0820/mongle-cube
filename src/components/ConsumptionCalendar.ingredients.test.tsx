@@ -87,6 +87,38 @@ describe('실제 재료 기준 NEW', () => {
     expect(within(secondDay).queryByText('NEW')).not.toBeInTheDocument()
   })
 
+  it('11월 16일 아욱은 NEW, 11월 13일에 먼저 먹은 현미는 NEW 아님', () => {
+    vi.setSystemTime(new Date('2026-11-16T10:00:00.000Z'))
+    const mallow: Ingredient = { id: 'ingredient-mallow', name: '아욱' }
+    const brownRice: Ingredient = { id: 'ingredient-brown-rice', name: '현미' }
+    const records = [
+      record('brown-first', 'batch-brown', '쌀귀리현미', '2026-11-13T01:05:00.000Z'),
+      record('brown-today', 'batch-brown', '쌀귀리현미', '2026-11-16T01:05:00.000Z'),
+      record('mallow-first', 'batch-mallow', '아욱', '2026-11-16T01:05:00.000Z'),
+    ]
+
+    render(
+      <ConsumptionCalendar
+        {...common}
+        batches={[batch('batch-brown', '쌀귀리현미'), batch('batch-mallow', '아욱')]}
+        recordIngredients={{
+          'brown-first': [brownRice],
+          'brown-today': [brownRice],
+          'mallow-first': [mallow],
+        }}
+        records={records}
+      />,
+    )
+
+    const today = screen.getByRole('button', { name: /^11월 16일, 2개 기록,/ })
+    const newFoods = within(today.querySelector('.month-day__new-foods')!)
+    expect(newFoods.getByText('아욱')).toBeInTheDocument()
+    expect(newFoods.queryByText('현미')).not.toBeInTheDocument()
+    const firstBrownDate = screen.getByRole('button', { name: /^11월 13일, 1개 기록,/ })
+    expect(within(firstBrownDate.querySelector('.month-day__new-foods')!).getByText('현미'))
+      .toBeInTheDocument()
+  })
+
   it('혼합 큐브에서는 이미 먹은 재료를 제외하고 처음인 재료만 NEW로 표시한다', () => {
     const records = [
       record('beef-first', 'batch-beef', '소고기', '2026-08-23T23:00:00.000Z'),
